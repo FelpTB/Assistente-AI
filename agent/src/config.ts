@@ -27,7 +27,7 @@ export const config = {
   // e só a mensagens enviadas por você (fromMe). Todo o resto é ignorado.
   allowedChats: opt("ALLOWED_CHAT_JIDS")
     .split(",")
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/^["']|["']$/g, "")) // tolera aspas coladas por engano
     .filter(Boolean),
 
   anthropic: {
