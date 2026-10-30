@@ -32,6 +32,7 @@ export const config = {
 
   anthropic: {
     apiKey: req("CLAUDE_API_KEY"),
+    workspaceId: opt("CLAUDE_WORKSPACE_ID"),
     model: opt("ANTHROPIC_MODEL", "claude-sonnet-5-5"),
   },
 

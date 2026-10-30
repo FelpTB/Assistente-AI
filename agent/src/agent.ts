@@ -2,7 +2,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import { config } from "./config.js";
 import { tools, runTool } from "./tools/index.js";
 
-const client = new Anthropic({ apiKey: config.anthropic.apiKey });
+const client = new Anthropic({
+  apiKey: config.anthropic.apiKey,
+  // Chaves sem workspace próprio exigem o workspace no cabeçalho de cada chamada.
+  defaultHeaders: config.anthropic.workspaceId
+    ? { "anthropic-workspace-id": config.anthropic.workspaceId }
+    : undefined,
+});
 
 // Memória curta por conversa, só em RAM (nada pessoal fica em banco).
 // Reinicia quando o servidor reinicia — o histórico real fica no Notion/Sheets/Calendar.

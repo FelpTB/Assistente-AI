@@ -29,6 +29,7 @@ As respostas começam com 🤖, e o agente ignora as próprias mensagens.
 | Variável | Onde conseguir |
 |---|---|
 | `CLAUDE_API_KEY` | console.anthropic.com → API Keys |
+| `CLAUDE_WORKSPACE_ID` | Opcional. Só se a chave não for de um workspace: console.anthropic.com → Settings → Workspaces → ID (`wrkspc_...`) |
 | `TOKEN_NOTION` | notion.so/profile/integrations → *Nova integração* (interna) → copie o token. Depois, na página **Assistente AI** do Notion: `⋯` → *Conexões* → adicione a integração. |
 | `EVOLUTION_AUTH_KEY` | No Railway, serviço da Evolution → Variables → `AUTHENTICATION_API_KEY` |
 | `WEBHOOK_TOKEN` | Qualquer texto aleatório longo (ex.: gerador de senhas, 40 caracteres) |
