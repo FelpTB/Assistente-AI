@@ -1,6 +1,13 @@
 // Dashboard do Assistente AI — sem build: HTML + JS puro (módulos ES), dados via /api.
 import { $, api, addDias, brl, diaDe, esc, fill, fmtData, fmtHora, hojeISO, setOnUnauthorized } from "./util.js";
 import { renderFinancas, redesenharFinancas } from "./financas.js";
+import { redesenharTrabalho, renderBuscaFornecedor, renderEmails } from "./trabalho.js";
+
+/** Redesenha os gráficos visíveis (troca de tema ou de largura). */
+const redesenhar = () => {
+  redesenharFinancas();
+  redesenharTrabalho();
+};
 
 const main = $("#main");
 let me = null;
@@ -16,7 +23,7 @@ function aplicarTema(t) {
     t === "auto" ? localStorage.removeItem("tema") : localStorage.setItem("tema", t);
   } catch {}
   document.querySelectorAll(".theme-switch button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tema === t));
-  redesenharFinancas();
+  redesenhar();
 }
 document.querySelectorAll(".theme-switch button").forEach((b) => (b.onclick = () => aplicarTema(b.dataset.tema)));
 aplicarTema(document.documentElement.dataset.theme ?? "auto");
@@ -24,7 +31,10 @@ aplicarTema(document.documentElement.dataset.theme ?? "auto");
 // ---- Navegação -------------------------------------------------------------
 function route() {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
-  if (h.startsWith("esfera/")) return { page: "esfera", area: h.slice(7) };
+  if (h.startsWith("esfera/")) {
+    const [area, aba] = h.slice(7).split("/");
+    return { page: "esfera", area, aba };
+  }
   if (h === "financas") return { page: "financas" };
   return { page: "geral" };
 }
@@ -57,14 +67,14 @@ document.addEventListener("click", (e) => {
 let resizeTimer;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(redesenharFinancas, 150);
+  resizeTimer = setTimeout(redesenhar, 150);
 });
 
 function render() {
   renderNav();
   const r = route();
   window.scrollTo(0, 0);
-  if (r.page === "esfera" && me.areas.includes(r.area)) renderEsfera(r.area);
+  if (r.page === "esfera" && me.areas.includes(r.area)) renderEsfera(r.area, r.aba);
   else if (r.page === "financas") renderFinancas(main);
   else renderGeral();
 }
@@ -86,7 +96,7 @@ function renderGeral() {
     <div class="grid">
       <section class="card span-12"><div class="card-head"><h2>Status do agente</h2></div><div id="c-status"></div></section>
       <section class="card span-8"><div class="card-head"><h2>Finanças</h2><a href="#/financas" class="small">Abrir finanças</a></div><div id="c-fin"></div></section>
-      <section class="card span-4"><div class="card-head"><h2>E-mails de hoje</h2><a href="#/esfera/Trabalho" class="small">Ver relatório</a></div><div id="c-emails"></div></section>
+      <section class="card span-4"><div class="card-head"><h2>E-mails de hoje</h2><a href="#/esfera/Trabalho/emails" class="small">Ver resumo</a></div><div id="c-emails"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Esferas</h2><span class="muted small">tarefas abertas</span></div><div id="c-areas"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Próximas tarefas</h2></div><div id="c-tarefas"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Agenda · 7 dias</h2></div><div id="c-agenda"></div></section>
@@ -182,21 +192,35 @@ function drawAgenda(evs) {
 }
 
 // ---- Esferas ---------------------------------------------------------------
-// Cada esfera tem painéis próprios acima do quadro de tarefas. Novos painéis entram aqui.
-const PAINEIS = {
-  Trabalho: [painelEmails],
+// Cada esfera pode ter abas próprias; "tarefas" é o quadro do Notion. Novas abas entram aqui.
+const ABAS = {
+  Trabalho: [
+    { id: "emails", nome: "Resumo de e-mails", render: renderEmails },
+    { id: "tarefas", nome: "Tarefas" },
+    { id: "busca-fornecedor", nome: "Busca Fornecedor", render: renderBuscaFornecedor },
+  ],
 };
 
 let mostrarConcluidas = false;
 
-function renderEsfera(area) {
-  const paineis = PAINEIS[area] ?? [];
+function renderEsfera(area, abaId) {
+  const abas = ABAS[area] ?? [{ id: "tarefas", nome: "Tarefas" }];
+  const aba = abas.find((a) => a.id === abaId) ?? abas[0];
   main.innerHTML = `
     <div class="page-head">
       <div><div class="muted small">Esfera</div><h1>${esc(area)}</h1></div>
     </div>
+    ${abas.length > 1 ? `<nav class="tabs" aria-label="Abas de ${esc(area)}">${abas
+      .map((a) => `<a href="#/esfera/${encodeURIComponent(area)}/${a.id}" ${a === aba ? 'aria-current="page"' : ""}>${esc(a.nome)}</a>`)
+      .join("")}</nav>` : ""}
+    <div id="aba"></div>`;
+  if (aba.render) aba.render($("#aba"), area);
+  else renderTarefas($("#aba"), area);
+}
+
+function renderTarefas(el, area) {
+  el.innerHTML = `
     <section class="card" style="margin-bottom:16px"><div id="e-kpis"></div></section>
-    ${paineis.map((_, i) => `<div id="painel-${i}"></div>`).join("")}
     <section class="card">
       <div class="card-head"><h2>Tarefas</h2>
         <label class="check"><input type="checkbox" id="concl" ${mostrarConcluidas ? "checked" : ""}/> Mostrar concluídas</label></div>
@@ -210,8 +234,6 @@ function renderEsfera(area) {
       <div id="add-msg" class="small" style="margin:8px 0"></div>
       <div id="board"></div>
     </section>`;
-
-  paineis.forEach((p, i) => p($(`#painel-${i}`), area));
 
   $("#concl").onchange = (e) => {
     mostrarConcluidas = e.target.checked;
@@ -312,74 +334,7 @@ async function mudarStatus(btn, area) {
   }
 }
 
-// ---- Painel: e-mails do dia (Trabalho) --------------------------------------
 const remetente = (de) => (de.match(/^"?([^"<]+?)"?\s*</)?.[1] ?? de).trim();
-
-function painelEmails(el) {
-  el.innerHTML = `<section class="card" style="margin-bottom:16px">
-    <div class="card-head"><h2>E-mails de hoje</h2>
-      <div class="periodo"><button class="btn sm" id="m-atual">Atualizar</button><button class="btn sm primary" id="m-resumo">Resumir com IA</button></div></div>
-    <div id="m-ia"></div>
-    <div id="m-lista"></div></section>`;
-  const carregar = () => fill($("#m-lista"), () => api("/emails/hoje"), drawEmails);
-  $("#m-atual").onclick = carregar;
-  $("#m-resumo").onclick = async (e) => {
-    const btn = e.target;
-    btn.disabled = true;
-    $("#m-ia").innerHTML = `<div class="ia-box loading">Lendo os e-mails de hoje…</div>`;
-    try {
-      const r = await api("/emails/resumo", { method: "POST" });
-      $("#m-ia").innerHTML = `<div class="ia-box">${formatarResumo(r.texto)}
-        <div class="small muted">Resumo de ${r.emails} e-mail(s), gerado às ${fmtHora(r.geradoEm)}${r.cache ? " (sem e-mails novos desde então)" : ""}.</div></div>`;
-    } catch (err) {
-      $("#m-ia").innerHTML = `<div class="error">${esc(err.message)}</div>`;
-    } finally {
-      btn.disabled = false;
-    }
-  };
-  carregar();
-}
-
-/** Texto do resumo → HTML seguro: linhas "- " viram itens; as demais, títulos. */
-function formatarResumo(texto) {
-  let html = "";
-  let aberto = false;
-  for (const linha of texto.split("\n").map((l) => l.trim()).filter(Boolean)) {
-    const item = linha.match(/^[-•*]\s+(.*)$/);
-    if (item) {
-      if (!aberto) (html += "<ul>"), (aberto = true);
-      html += `<li>${esc(item[1].replace(/\*\*/g, ""))}</li>`;
-    } else {
-      if (aberto) (html += "</ul>"), (aberto = false);
-      html += `<h4>${esc(linha.replace(/[#*:]/g, "").trim())}</h4>`;
-    }
-  }
-  return html + (aberto ? "</ul>" : "");
-}
-
-function drawEmails(es) {
-  if (!es.length) return `<div class="empty">Nenhum e-mail recebido hoje.</div>`;
-  const grupos = [
-    ["Principal", es.filter((e) => e.categoria === "Principal" || e.categoria === "Fóruns")],
-    ["Atualizações", es.filter((e) => e.categoria === "Atualizações")],
-    ["Promoções e social", es.filter((e) => e.categoria === "Promoções" || e.categoria === "Social")],
-  ].filter(([, l]) => l.length);
-  return grupos
-    .map(
-      ([nome, l]) => `<details class="mail-group" ${nome === "Promoções e social" ? "" : "open"}>
-      <summary><b>${esc(nome)}</b> <span class="muted small">${l.length} · ${l.filter((e) => e.naoLido).length} não lido(s)</span></summary>
-      <div class="list">${l
-        .map(
-          (e) => `<a class="row mail ${e.naoLido ? "unread" : ""}" href="${esc(e.link)}" target="_blank" rel="noopener">
-            <span class="when">${esc(fmtHora(e.recebidoEm))}</span>
-            <div class="grow"><div class="title">${esc(e.assunto)}</div>
-              <div class="meta"><span>${esc(remetente(e.de))}</span>${e.importante ? `<span class="tag alta">Importante</span>` : ""}</div>
-              <div class="small muted snippet">${esc(e.trecho)}</div></div></a>`,
-        )
-        .join("")}</div></details>`,
-    )
-    .join("");
-}
 
 // ---- Início ----------------------------------------------------------------
 function showLogin() {

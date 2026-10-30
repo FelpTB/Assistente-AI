@@ -24,6 +24,7 @@ Escopo original: `requirements.txt.txt`.
 | Notion — banco "Tarefas" | database `dde11622db594d3eb5802c6245570e5b` · data source `5072380e-9871-4bb0-8eed-695dca78ed8b` |
 | Drive — pasta "Assistente AI" | `1SLvgcMiydqNIrmDb_n-ykbcc_zw3mOs7` |
 | Sheets — "Controle de Gastos" | `1ATjK3sX3y8_IbgA38cqs1GU3seBus5VAI2441vuzTUI` |
+| Supabase — projeto abcAdvise (Busca Fornecedor) | `hccolkrnyrxcbxuuajwq`, schema `busca_fornecedor` (company_profile, usuario_fornecedor, usuario_comprador, consultas) |
 
 ### Banco "Tarefas" (Notion)
 Tarefa (título) · Área (Trabalho/Academia/Faculdade/Projetos/Pessoal) · Status (A fazer/Em andamento/Concluída)
@@ -44,6 +45,11 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 - **Resumo**: período em B3 (De) e B4 (Até), padrão = mês atual; entradas, saídas, por categoria, por meio, faturas pagas e saldos atuais.
 - **Categorias**: lista editável (Categoria · Tipo).
 - ⚠️ Planilha em locale **pt_BR**: fórmulas usam `;` como separador. Ao gravar via API, enviar datas e valores como números (não texto) e acrescentar linhas com append em `Lançamentos!A:H`.
+
+### Painel Busca Fornecedor
+- Lê o Supabase abcAdvise pela API REST com a chave service_role (`BF_SUPABASE_KEY`), só colunas não pessoais, e devolve **apenas agregados** ao dashboard. Resultados em cache de 10 min.
+- `company_profile` tem ~585 mil linhas e `created_at` **sem índice** (contar por data leva ~5 s; o limite da API é 8 s): o total vem da estimativa do Postgres e os novos são lidos pelas 10 mil linhas mais recentes por `id`.
+- Site: verificação HTTP de `BF_SITE_URL`. n8n: API pública (`N8N_URL`, `N8N_API_KEY`), todas as execuções.
 
 ## Arquitetura proposta
 ```
@@ -75,7 +81,7 @@ senhas/     app de senhas (a importar)
 2. ✅ Agente no ar no Railway (https://assistente-ai-claude-officetools.up.railway.app), conversando no grupo solo
 3. Notas no Google Keep; áudios e fotos de comprovantes
 4. Relatório diário (agenda + e-mails importantes + notícias) e notificações
-5. ✅ Dashboard web em `agent/public` (servido pelo agente, login Google, tema claro/escuro): visão geral, **Finanças** (saldos, gráficos, lançamentos, inicializar/corrigir), esferas com painéis (Trabalho: e-mails do dia + resumo por IA) e tarefas
+5. ✅ Dashboard web em `agent/public` (servido pelo agente, login Google, tema claro/escuro): visão geral, **Finanças** (saldos, gráficos, lançamentos, inicializar/corrigir), esferas com abas (Trabalho: resumo de e-mails, tarefas, Busca Fornecedor com site/Supabase/n8n)
    ⏳ Falta: ligar esferas a contas de e-mail
 6. Integração do app de senhas
 7. Outras contas de e-mail; automação de conversas no WhatsApp

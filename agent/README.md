@@ -77,11 +77,14 @@ O dashboard fica no mesmo endereço do agente (`https://SEU-AGENTE.up.railway.ap
 |---|---|
 | `DASHBOARD_EMAILS` | E-mails com acesso, separados por vírgula |
 | `PUBLIC_URL` | Endereço público, se usar domínio próprio (o Railway já informa o padrão) |
+| `BF_SUPABASE_KEY` | Chave **service_role** do projeto Supabase abcAdvise (Settings → API). Só o servidor usa, para leituras agregadas do schema `busca_fornecedor` |
+| `BF_SITE_URL` | Endereço publicado do site do Busca Fornecedor (Lovable) |
+| `N8N_URL` / `N8N_API_KEY` | Endereço do n8n e uma chave da API (n8n → Settings → n8n API) |
 | `DASHBOARD_SESSION_SECRET` | Assina o cookie de login; sem ela, deriva do `WEBHOOK_TOKEN` |
 
 - **Visão geral:** status das integrações, saldos, e-mails de hoje, tarefas por esfera e agenda.
 - **Finanças:** saldos de Dinheiro, Cartão e Vale; relatório por período; gráficos de entradas e saídas por mês e da evolução dos saldos; lista de lançamentos; formulários para inicializar e corrigir saldos.
-- **Esferas:** indicadores e quadro de tarefas de cada área, com painéis próprios (Trabalho: e-mails do dia e resumo com IA sob demanda).
+- **Esferas:** indicadores e quadro de tarefas de cada área. **Trabalho** tem abas: resumo dos 5 e-mails mais recentes (resumo e ação sugerida pela IA) e dos e-mails do dia, tarefas e o projeto **Busca Fornecedor**.
 - Tema claro, escuro ou automático. Os dados são lidos na hora; nada fica guardado no servidor.
 
 ---
@@ -93,7 +96,8 @@ src/agent.ts        conversa com o Claude + execução das ferramentas
 src/evolution.ts    envio de mensagens
 src/auth.ts         login do dashboard (Google)
 src/dashboard.ts    API do dashboard (/api/*)
-public/             interface do dashboard (HTML/JS em módulos, sem build): app, financas, charts, util
+src/buscaFornecedor.ts  painel do projeto: site, métricas do Supabase e execuções do n8n
+public/             interface do dashboard (HTML/JS em módulos, sem build): app, financas, trabalho, charts, util
 src/tools/          tarefas (Notion), agenda (Calendar), gastos (Sheets), emails (Gmail)
 scripts/            google-auth, configurar-webhook
 ```

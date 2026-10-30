@@ -300,3 +300,16 @@ a.row.mail:hover .title { color: var(--accent); }
   .forms { grid-template-columns: 1fr; }
   .page-head .periodo { width: 100%; }
 }
+
+/* ---- Abas e painéis da esfera Trabalho ---- */
+.tabs { display: flex; flex-direction: row; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; overflow-y: hidden; }
+.tabs a { display: block; padding: 8px 12px; border-radius: 0; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tabs a:hover { color: var(--text); background: none; }
+.tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.mail-resumo .title { color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.mail-resumo a.title:hover { color: var(--accent); }
+.mail-resumo .resumo { margin-top: 4px; font-size: 13px; }
+.mail-resumo .acao { margin-top: 4px; font-size: 13px; background: var(--accent-soft); border-radius: 6px; padding: 4px 8px; display: inline-block; }
+.dot.warn { background: var(--warn); }
+.tag.ok { background: var(--ok-soft); color: var(--ok); }
+.small-value { font-size: 14px !important; }

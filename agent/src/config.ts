@@ -53,6 +53,16 @@ export const config = {
   // Prefixo das respostas do agente: deixa claro no grupo o que veio do assistente.
   replyPrefix: opt("REPLY_PREFIX", "🤖 "),
 
+  // Projeto Busca Fornecedor (aba Trabalho). Tudo opcional: sem a variável, o painel avisa o que falta.
+  buscaFornecedor: {
+    supabaseUrl: opt("BF_SUPABASE_URL", "https://hccolkrnyrxcbxuuajwq.supabase.co").replace(/\/$/, ""),
+    supabaseKey: opt("BF_SUPABASE_KEY"), // service_role: usada só no servidor, só para leituras agregadas
+    schema: opt("BF_SUPABASE_SCHEMA", "busca_fornecedor"),
+    siteUrl: opt("BF_SITE_URL").replace(/\/$/, ""),
+    n8nUrl: opt("N8N_URL").replace(/\/$/, ""),
+    n8nApiKey: opt("N8N_API_KEY"),
+  },
+
   dashboard: {
     // Endereço público do serviço; o Railway informa o domínio em RAILWAY_PUBLIC_DOMAIN.
     publicUrl: (
