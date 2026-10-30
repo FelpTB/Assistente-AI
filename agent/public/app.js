@@ -87,7 +87,8 @@ async function carregarTarefas(force = false) {
 
 // ---- Visão geral -----------------------------------------------------------
 function renderGeral() {
-  const mes = hojeISO().slice(0, 7);
+  const hoje = hojeISO();
+  const inicioMes = `${hoje.slice(0, 7)}-01`;
   main.innerHTML = `
     <div class="page-head">
       <div><h1>Visão geral</h1><div class="muted">${esc(fmtData(hojeISO()))}</div></div>
@@ -99,7 +100,9 @@ function renderGeral() {
       <section class="card span-6"><div class="card-head"><h2>Próximas tarefas</h2></div><div id="c-tarefas"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Agenda · 7 dias</h2></div><div id="c-agenda"></div></section>
       <section class="card span-12">
-        <div class="card-head"><h2>Gastos do mês</h2><input type="month" id="mes" value="${mes}" style="width:auto" /></div>
+        <div class="card-head"><h2>Gastos</h2>
+          <div class="periodo"><input type="date" id="de" value="${inicioMes}" /><span class="muted">até</span><input type="date" id="ate" value="${hoje}" /></div>
+        </div>
         <div id="c-gastos"></div>
       </section>
     </div>`;
@@ -107,11 +110,13 @@ function renderGeral() {
     tarefasCache = null;
     renderGeral();
   };
-  $("#mes").onchange = (e) => fill($("#c-gastos"), () => api(`/gastos?mes=${e.target.value}`), drawGastos);
+  const carregarGastos = () => fill($("#c-gastos"), () => api(`/gastos?de=${$("#de").value}&ate=${$("#ate").value}`), drawGastos);
+  $("#de").onchange = carregarGastos;
+  $("#ate").onchange = carregarGastos;
 
   fill($("#c-status"), () => api("/status"), drawStatus);
   fill($("#c-agenda"), () => api("/agenda?dias=7"), drawAgenda);
-  fill($("#c-gastos"), () => api(`/gastos?mes=${mes}`), drawGastos);
+  carregarGastos();
   const tarefas = carregarTarefas();
   fill($("#c-areas"), () => tarefas, drawAreas);
   fill($("#c-tarefas"), () => tarefas, (ts) => drawListaTarefas(ts.filter((t) => t.prazo).slice(0, 8)));
@@ -171,11 +176,23 @@ function drawAgenda(evs) {
 function drawGastos(g) {
   const cats = Object.entries(g.porCategoria ?? {}).sort((a, b) => b[1] - a[1]);
   const max = Math.max(...cats.map((c) => c[1]), 1);
+  const s = g.saldosAtuais;
+  const sinal = (n) => (n < 0 ? "neg" : "");
   return `
+    <h3 class="small muted" style="margin-bottom:8px">Saldos atuais</h3>
+    <div class="kpis saldos">
+      <div class="kpi"><div class="label">Dinheiro em conta</div><div class="value ${sinal(s.dinheiro)}">${brl(s.dinheiro)}</div></div>
+      <div class="kpi"><div class="label">Vale</div><div class="value ${sinal(s.vale)}">${brl(s.vale)}</div></div>
+      <div class="kpi"><div class="label">Cartão · fatura em aberto</div><div class="value">${brl(s.cartaoFatura)}</div>
+        <div class="small muted">Limite disponível <span class="${sinal(s.cartaoLimiteDisponivel)}">${brl(s.cartaoLimiteDisponivel)}</span></div></div>
+    </div>
+    <h3 class="small muted" style="margin-bottom:8px">No período</h3>
     <div class="kpis">
       <div class="kpi"><div class="label">Entradas</div><div class="value pos">${brl(g.entradas)}</div></div>
-      <div class="kpi"><div class="label">Saídas</div><div class="value neg">${brl(g.saidas)}</div></div>
-      <div class="kpi"><div class="label">Saldo</div><div class="value ${g.saldo >= 0 ? "pos" : "neg"}">${brl(g.saldo)}</div></div>
+      <div class="kpi"><div class="label">Saídas</div><div class="value neg">${brl(g.saidas)}</div>
+        <div class="small muted">${Object.entries(g.saidasPorMeio ?? {}).map(([m, v]) => `${esc(m)} ${brl(v)}`).join(" · ")}</div></div>
+      <div class="kpi"><div class="label">Saldo do período</div><div class="value ${g.saldoDoPeriodo >= 0 ? "pos" : "neg"}">${brl(g.saldoDoPeriodo)}</div>
+        <div class="small muted">Faturas pagas ${brl(g.faturasPagas)}</div></div>
     </div>
     <div class="grid">
       <div class="span-6">
@@ -200,8 +217,8 @@ function drawGastos(g) {
                 .reverse()
                 .map(
                   (l) => `<div class="row"><span class="when">${esc(fmtData(l.data))}</span>
-                  <div class="grow"><div class="title">${esc(l.descricao)}</div><div class="meta">${esc(l.categoria)}</div></div>
-                  <span class="${l.tipo === "Entrada" ? "pos" : "neg"}">${l.tipo === "Entrada" ? "+" : "−"}${brl(l.valor)}</span></div>`,
+                  <div class="grow"><div class="title">${esc(l.descricao)}</div><div class="meta"><span>${esc(l.categoria)}</span><span class="tag">${esc(l.meio)}</span></div></div>
+                  <span class="${l.tipo === "Entrada" ? "pos" : l.tipo === "Saída" ? "neg" : "muted"}">${l.tipo === "Entrada" ? "+" : l.tipo === "Saída" ? "−" : "↔"}${brl(l.valor)}</span></div>`,
                 )
                 .join("")}</div>`
             : `<div class="empty">Nenhum lançamento.</div>`

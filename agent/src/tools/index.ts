@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { AREAS, PRIORIDADES, STATUS, criarTarefa, listarTarefas, atualizarTarefa } from "./tarefas.js";
 import { criarEvento, listarAgenda, removerEvento } from "./agenda.js";
-import { lancarGasto, resumoGastos, listarCategorias } from "./gastos.js";
+import { MEIOS, TIPOS, lancarGasto, resumoGastos, listarCategorias, saldos } from "./gastos.js";
 import { buscarEmails } from "./emails.js";
 
 export const tools: Anthropic.Tool[] = [
@@ -90,32 +90,46 @@ export const tools: Anthropic.Tool[] = [
   {
     name: "lancar_gasto",
     description:
-      "Registra uma entrada ou saída na planilha de gastos. Use uma categoria de listar_categorias. Contas recorrentes (aluguel, internet, mensalidade) são 'Fixa'; o resto é 'Variável'.",
+      "Registra um lançamento na planilha de gastos e devolve os saldos atualizados. " +
+      "Meio: 'Dinheiro' (conta, débito, Pix), 'Cartão' (crédito) ou 'Vale' (benefício da empresa). " +
+      "Tipo 'Pagamento de fatura' quando o usuário paga a fatura do cartão: sai do Dinheiro e libera o limite do Cartão (não é despesa; categoria e meio são preenchidos sozinhos). " +
+      "Escolha você a categoria a partir da descrição, entre as de listar_categorias do mesmo tipo. " +
+      "Contas recorrentes (aluguel, internet, mensalidade) são 'Fixa'; o resto é 'Variável'.",
     input_schema: {
       type: "object",
       properties: {
         data: { type: "string", description: "yyyy-mm-dd (padrão: hoje)" },
-        descricao: { type: "string" },
-        tipo: { type: "string", enum: ["Entrada", "Saída"] },
+        descricao: { type: "string", description: "O que foi pago ou recebido, curto" },
+        tipo: { type: "string", enum: [...TIPOS] },
+        meio: { type: "string", enum: [...MEIOS] },
         natureza: { type: "string", enum: ["Fixa", "Variável"] },
-        categoria: { type: "string" },
+        categoria: { type: "string", description: "Obrigatória para Entrada e Saída" },
         valor: { type: "number", description: "Valor positivo em reais" },
-        formaPagamento: { type: "string", description: "Pix, Cartão de crédito, Débito, Dinheiro, Boleto..." },
       },
-      required: ["data", "descricao", "tipo", "natureza", "categoria", "valor"],
+      required: ["descricao", "tipo", "meio", "valor"],
     },
   },
   {
     name: "listar_categorias",
-    description: "Lista as categorias de gastos disponíveis na planilha.",
+    description: "Lista as categorias da planilha, com o tipo (Entrada, Saída ou Transferência).",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "saldos",
+    description: "Saldos atuais: Dinheiro em conta, Vale, fatura do Cartão em aberto e limite disponível.",
     input_schema: { type: "object", properties: {} },
   },
   {
     name: "resumo_gastos",
-    description: "Resumo financeiro de um mês: entradas, saídas, saldo, por categoria e despesas fixas cadastradas.",
+    description:
+      "Relatório de um período (padrão: do dia 1 do mês até hoje): entradas, saídas, saídas por categoria e por meio, faturas pagas, saldos atuais e últimos lançamentos.",
     input_schema: {
       type: "object",
-      properties: { mes: { type: "string", description: "aaaa-mm (padrão: mês atual)" } },
+      properties: {
+        de: { type: "string", description: "yyyy-mm-dd" },
+        ate: { type: "string", description: "yyyy-mm-dd" },
+        mes: { type: "string", description: "aaaa-mm, atalho para o mês inteiro" },
+      },
     },
   },
   {
@@ -138,6 +152,7 @@ const handlers: Record<string, (input: any) => Promise<unknown>> = {
   remover_evento: (i) => removerEvento(i.id),
   lancar_gasto: lancarGasto,
   listar_categorias: listarCategorias,
+  saldos: saldos,
   resumo_gastos: resumoGastos,
   buscar_emails: buscarEmails,
 };

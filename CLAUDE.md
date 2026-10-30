@@ -32,9 +32,13 @@ Tarefa (título) · Área (Trabalho/Academia/Faculdade/Projetos/Pessoal) · Stat
 Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 
 ### Planilha "Controle de Gastos" (Sheets)
-- **Lançamentos** (A:I): Data · Descrição · Tipo (Entrada/Saída) · Natureza (Fixa/Variável) · Categoria · Valor · Forma de pagamento · Origem · Mês (automático, ARRAYFORMULA em I1 — não escrever na coluna I).
-- **Despesas Fixas**: Descrição · Categoria · Valor · Dia de vencimento · Forma de pagamento · Ativa (checkbox).
-- **Resumo**: mês em B3 (padrão = mês atual), entradas, saídas, saldo, fixas pagas/previstas/pendentes, saídas por categoria.
+- Registro **contínuo** (não separado por mês); relatórios filtram por data. Saldo em 3 meios:
+  **Dinheiro** (conta/débito/Pix), **Cartão** (crédito: compras somam na fatura, o pagamento libera o limite) e **Vale** (benefício da empresa, separado do Dinheiro).
+- **Lançamentos** (A:I): Data · Descrição · Tipo (Entrada/Saída/Pagamento de fatura) · Natureza (Fixa/Variável) · Categoria · Valor · Meio (Dinheiro/Cartão/Vale) · Origem · Mês (automático, ARRAYFORMULA em I1 — não escrever na coluna I).
+  "Pagamento de fatura" sai do Dinheiro, zera parte da fatura do Cartão e não é despesa (as compras já contaram). Categoria escolhida pelo agente a partir da descrição.
+- **Contas**: saldos atuais em B4:B7 (Dinheiro, Vale, fatura do Cartão, limite disponível) — o agente lê daqui. Valores iniciais (saldos, fatura, limite, data) em B12:B16, preenchidos pelo usuário.
+- **Despesas Fixas**: Descrição · Categoria · Valor · Dia de vencimento · Meio · Ativa (checkbox).
+- **Resumo**: período em B3 (De) e B4 (Até), padrão = mês atual; entradas, saídas, por categoria, por meio, faturas pagas e saldos atuais.
 - **Categorias**: lista editável (Categoria · Tipo).
 - ⚠️ Planilha em locale **pt_BR**: fórmulas usam `;` como separador. Ao gravar via API, enviar datas e valores como números (não texto) e acrescentar linhas com append em `Lançamentos!A:H`.
 

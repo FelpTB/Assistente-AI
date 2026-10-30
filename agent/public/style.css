@@ -88,7 +88,7 @@ nav .sep { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; co
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 16px; box-shadow: var(--shadow); min-width: 0;
 }
-.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
 .span-12 { grid-column: span 12; }
 .span-8 { grid-column: span 8; }
 .span-6 { grid-column: span 6; }
@@ -109,6 +109,9 @@ nav .sep { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; co
 .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
 .kpi { background: var(--surface-2); border-radius: 8px; padding: 10px; }
 .kpi .label { font-size: 12px; color: var(--muted); }
+.saldos .kpi { background: var(--accent-soft); }
+.periodo { display: flex; gap: 6px; align-items: center; }
+.periodo input { width: auto; }
 .kpi .value { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pos { color: var(--ok); }
 .neg { color: var(--bad); }
@@ -169,7 +172,8 @@ label.check input { width: auto; }
 .link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-align: left; }
 
 @media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; }
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar, .main { min-width: 0; }
   .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
   nav { flex-direction: row; overflow-x: auto; }
   nav .sep { display: none; }
@@ -181,4 +185,6 @@ label.check input { width: auto; }
   form.add { grid-template-columns: 1fr 1fr; }
   form.add input[name=tarefa] { grid-column: span 2; }
   .kpis { grid-template-columns: 1fr; }
+  .periodo { flex-wrap: wrap; }
+  .bar-row { grid-template-columns: 90px 1fr 80px; }
 }

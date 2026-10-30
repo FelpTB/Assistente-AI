@@ -129,8 +129,11 @@ export function registerDashboardRoutes(app: Express) {
   api.get(
     "/gastos",
     route(async (req) => {
-      const mes = typeof req.query.mes === "string" && /^\d{4}-\d{2}$/.test(req.query.mes) ? req.query.mes : undefined;
-      return resumoGastos({ mes });
+      const data = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+      const de = data(req.query.de);
+      const ate = data(req.query.ate);
+      if (de && ate && de > ate) badRequest("A data inicial é depois da final.");
+      return resumoGastos({ de, ate });
     }),
   );
 
