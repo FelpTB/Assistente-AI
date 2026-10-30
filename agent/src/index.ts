@@ -73,9 +73,11 @@ app.post("/webhook/evolution", (req, res) => {
 
     // Modo de configuração: sem chat liberado, "/ativar" informa o ID do chat.
     if (config.allowedChats.length === 0) {
-      if (text === "/ativar") {
+      if (text.toLowerCase() === "/ativar") {
         console.log(`[ativar] ID do chat: ${remoteJid}`);
         sendText(remoteJid, `${config.replyPrefix}ID deste chat: ${remoteJid}\nColoque esse valor em ALLOWED_CHAT_JIDS no Railway.`).catch(console.error);
+      } else {
+        console.log('[ignorada] ALLOWED_CHAT_JIDS vazio: só "/ativar" é respondido');
       }
       continue;
     }
