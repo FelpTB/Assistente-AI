@@ -69,11 +69,10 @@ senhas/     app de senhas (a importar)
 
 ## Roadmap
 1. ✅ Base de dados: Notion (tarefas) + Sheets (gastos)
-2. ✅ Código do agente em `agent/` (webhook Evolution + Claude + tools de tarefas, agenda, gastos, e-mails) — testado com mocks
-   ⏳ Falta: credenciais, deploy no Railway, `/ativar` no grupo (passo a passo em `agent/README.md`)
+2. ✅ Agente no ar no Railway (https://assistente-ai-claude-officetools.up.railway.app), conversando no grupo solo
 3. Notas no Google Keep; áudios e fotos de comprovantes
 4. Relatório diário (agenda + e-mails importantes + notícias) e notificações
-5. 🟡 Dashboard web em `agent/public` (servido pelo agente, login Google): status, tarefas por esfera, agenda, gastos
-   ⏳ Falta: URI de redirecionamento `/auth/callback` no Google Cloud; ligar esferas a contas de e-mail
+5. ✅ Dashboard web em `agent/public` (servido pelo agente, login Google): status, tarefas por esfera, agenda, gastos com saldos
+   ⏳ Falta: ligar esferas a contas de e-mail
 6. Integração do app de senhas
 7. Outras contas de e-mail; automação de conversas no WhatsApp
