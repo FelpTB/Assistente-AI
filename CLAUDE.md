@@ -37,7 +37,9 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 - **Lançamentos** (A:I): Data · Descrição · Tipo (Entrada/Saída/Pagamento de fatura/Ajuste) · Natureza (Fixa/Variável) · Categoria · Valor · Meio (Dinheiro/Cartão/Vale) · Origem · Mês (automático, ARRAYFORMULA em I1 — não escrever na coluna I).
   "Pagamento de fatura" sai do Dinheiro, zera parte da fatura do Cartão e não é despesa (as compras já contaram). Categoria escolhida pelo agente a partir da descrição.
   "Ajuste" (categoria "Ajuste de saldo", valor com sinal) corrige um saldo sem entrar nos relatórios; criado pelo formulário de correção ou pela tool `corrigir_saldo`.
-- **Contas**: saldos atuais em B4:B7 (Dinheiro, Vale, fatura do Cartão, limite disponível) — o agente lê daqui. Valores iniciais (saldos, fatura, limite, data) em B12:B16, gravados pelo formulário "Inicializar" da aba Finanças. Movimento por meio em B19:E21 (entradas, saídas, faturas pagas, ajustes).
+- **Contas**: saldos atuais em B4:B8 (Dinheiro, Vale, fatura do Cartão, limite disponível, limite total) — o agente lê daqui.
+  Limite total = limite disponível + fatura (B8 = B15 + B14); disponível atual = total − fatura atual.
+  Valores iniciais (Dinheiro, Vale, fatura, **limite disponível**, data) em B12:B16, gravados pelo formulário "Inicializar" da aba Finanças. Movimento por meio em B19:E21 (entradas, saídas, faturas pagas, ajustes).
 - **Despesas Fixas**: Descrição · Categoria · Valor · Dia de vencimento · Meio · Ativa (checkbox).
 - **Resumo**: período em B3 (De) e B4 (Até), padrão = mês atual; entradas, saídas, por categoria, por meio, faturas pagas e saldos atuais.
 - **Categorias**: lista editável (Categoria · Tipo).

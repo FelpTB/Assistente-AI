@@ -50,7 +50,7 @@ export function renderFinancas(main) {
             <label>Dinheiro em conta<input name="dinheiro" type="number" step="0.01" inputmode="decimal" /></label>
             <label>Vale<input name="vale" type="number" step="0.01" inputmode="decimal" /></label>
             <label>Fatura do cartão em aberto<input name="cartaoFatura" type="number" step="0.01" inputmode="decimal" /></label>
-            <label>Limite do cartão<input name="cartaoLimite" type="number" step="0.01" min="0" inputmode="decimal" /></label>
+            <label>Limite disponível do cartão<input name="cartaoLimiteDisponivel" type="number" step="0.01" inputmode="decimal" /></label>
             <label>Motivo (opcional)<input name="motivo" maxlength="120" placeholder="Ex.: tarifa bancária não lançada" /></label>
             <button class="btn primary">Aplicar correção</button>
             <div class="form-msg small"></div>
@@ -61,7 +61,8 @@ export function renderFinancas(main) {
             <label>Dinheiro em conta<input name="dinheiro" type="number" step="0.01" required inputmode="decimal" /></label>
             <label>Vale<input name="vale" type="number" step="0.01" required inputmode="decimal" /></label>
             <label>Fatura do cartão em aberto<input name="cartaoFatura" type="number" step="0.01" required inputmode="decimal" /></label>
-            <label>Limite do cartão<input name="cartaoLimite" type="number" step="0.01" min="0" required inputmode="decimal" /></label>
+            <label>Limite disponível do cartão<input name="cartaoLimiteDisponivel" type="number" step="0.01" required inputmode="decimal" /></label>
+            <p class="muted small" id="f-total"></p>
             <label>Data destes valores<input name="data" type="date" required /></label>
             <button class="btn">Salvar valores iniciais</button>
             <div class="form-msg small"></div>
@@ -151,7 +152,7 @@ function desenhar(d) {
   const s = r.saldosAtuais;
   const ini = d.historico.iniciais;
   const sinal = (n) => (n < 0 ? "neg" : "");
-  const semInicio = !ini.dinheiro && !ini.vale && !ini.cartaoFatura && !ini.cartaoLimite;
+  const semInicio = !ini.dinheiro && !ini.vale && !ini.cartaoFatura && !ini.cartaoLimiteDisponivel;
 
   $("#f-saldos").innerHTML = `
     ${semInicio ? `<div class="notice">Os valores iniciais ainda estão zerados. Preencha <a href="#ajustar">Inicializar</a> com os saldos de hoje para o monitoramento começar certo.</div>` : ""}
@@ -160,7 +161,7 @@ function desenhar(d) {
       <div class="kpi"><div class="label"><i class="sw" style="background:var(--series-3)"></i>Vale</div><div class="value ${sinal(s.vale)}">${brl(s.vale)}</div></div>
       <div class="kpi"><div class="label"><i class="sw" style="background:var(--series-2)"></i>Cartão · fatura em aberto</div><div class="value">${brl(s.cartaoFatura)}</div></div>
       <div class="kpi"><div class="label">Cartão · limite disponível</div><div class="value ${sinal(s.cartaoLimiteDisponivel)}">${brl(s.cartaoLimiteDisponivel)}</div>
-        <div class="small muted">de ${brl(ini.cartaoLimite)}</div></div>
+        <div class="small muted">de ${brl(s.cartaoLimiteTotal)} no total</div></div>
     </div>
     <div class="small muted" style="margin-top:8px">Base: valores de ${fmtData(ini.data, { semana: false })}. Dinheiro disponível descontando a fatura: <b>${brl(s.dinheiro - s.cartaoFatura)}</b></div>`;
 
@@ -197,13 +198,19 @@ function desenhar(d) {
   fc.dinheiro.placeholder = `atual ${brl(s.dinheiro)}`;
   fc.vale.placeholder = `atual ${brl(s.vale)}`;
   fc.cartaoFatura.placeholder = `atual ${brl(s.cartaoFatura)}`;
-  fc.cartaoLimite.placeholder = `atual ${brl(ini.cartaoLimite)}`;
+  fc.cartaoLimiteDisponivel.placeholder = `atual ${brl(s.cartaoLimiteDisponivel)}`;
   const fi = $("#f-iniciais");
   fi.dinheiro.value = ini.dinheiro;
   fi.vale.value = ini.vale;
   fi.cartaoFatura.value = ini.cartaoFatura;
-  fi.cartaoLimite.value = ini.cartaoLimite;
+  fi.cartaoLimiteDisponivel.value = ini.cartaoLimiteDisponivel;
   fi.data.value = ini.data;
+  // Mostra o limite total (disponível + fatura) enquanto o usuário digita.
+  const total = () =>
+    ($("#f-total").textContent = `Limite total: ${brl((Number(fi.cartaoLimiteDisponivel.value) || 0) + (Number(fi.cartaoFatura.value) || 0))}`);
+  fi.cartaoLimiteDisponivel.oninput = total;
+  fi.cartaoFatura.oninput = total;
+  total();
 }
 
 function desenharGraficos(d) {

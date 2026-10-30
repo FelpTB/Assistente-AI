@@ -7,7 +7,7 @@ import { AREAS, PRIORIDADES, STATUS, criarTarefa, listarTarefas, atualizarTarefa
 import { listarAgenda } from "./tools/agenda.js";
 import {
   MEIOS,
-  atualizarLimite,
+  atualizarLimiteDisponivel,
   corrigirSaldo,
   definirValoresIniciais,
   historico,
@@ -175,7 +175,7 @@ export function registerDashboardRoutes(app: Express) {
         dinheiro: b.dinheiro,
         vale: b.vale,
         cartaoFatura: b.cartaoFatura,
-        cartaoLimite: b.cartaoLimite,
+        cartaoLimiteDisponivel: b.cartaoLimiteDisponivel,
         data: dataISO(b.data),
       });
     }),
@@ -186,14 +186,16 @@ export function registerDashboardRoutes(app: Express) {
     route(async (req) => {
       const b = req.body ?? {};
       const feitos: unknown[] = [];
+      const preenchido = (v: unknown) => v !== undefined && v !== null && v !== "";
       // Cada campo preenchido vira um ajuste; campos vazios são ignorados.
+      // A fatura vem antes do limite: o limite disponível é calculado sobre a fatura já corrigida.
       for (const [campo, meio] of [["dinheiro", "Dinheiro"], ["vale", "Vale"], ["cartaoFatura", "Cartão"]] as const) {
-        if (b[campo] === undefined || b[campo] === null || b[campo] === "") continue;
+        if (!preenchido(b[campo])) continue;
         feitos.push(await corrigirSaldo({ meio, valorReal: Number(b[campo]), motivo: b.motivo || undefined }));
       }
-      if (b.cartaoLimite !== undefined && b.cartaoLimite !== null && b.cartaoLimite !== "") {
-        await atualizarLimite(Number(b.cartaoLimite));
-        feitos.push({ limite: Number(b.cartaoLimite) });
+      if (preenchido(b.cartaoLimiteDisponivel)) {
+        await atualizarLimiteDisponivel(Number(b.cartaoLimiteDisponivel));
+        feitos.push({ limiteDisponivel: Number(b.cartaoLimiteDisponivel) });
       }
       if (!feitos.length) badRequest("Preencha ao menos um valor para corrigir.");
       return { feitos, meios: MEIOS };

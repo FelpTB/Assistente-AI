@@ -80,7 +80,7 @@ export async function lancarGasto(input: {
 export async function saldos() {
   const r = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: "Contas!A4:B7",
+    range: "Contas!A4:B8",
     valueRenderOption: "UNFORMATTED_VALUE",
   });
   const v = (i: number) => round2(Number(r.data.values?.[i]?.[1]) || 0);
@@ -89,6 +89,8 @@ export async function saldos() {
     vale: v(1),
     cartaoFatura: v(2),
     cartaoLimiteDisponivel: v(3),
+    // Limite total = limite disponível + fatura (ambos na data inicial).
+    cartaoLimiteTotal: v(4),
   };
 }
 
@@ -134,18 +136,21 @@ export async function valoresIniciais() {
     valueRenderOption: "UNFORMATTED_VALUE",
   });
   const v = (i: number) => Number(r.data.values?.[i]?.[0]) || 0;
-  return { dinheiro: v(0), vale: v(1), cartaoFatura: v(2), cartaoLimite: v(3), data: v(4) ? fromSerial(v(4)) : hoje() };
+  return { dinheiro: v(0), vale: v(1), cartaoFatura: v(2), cartaoLimiteDisponivel: v(3), data: v(4) ? fromSerial(v(4)) : hoje() };
 }
 
-/** Inicializa o monitoramento: grava os saldos do dia informado (aba Contas, B12:B16). */
+/**
+ * Inicializa o monitoramento: grava os saldos do dia informado (aba Contas, B12:B16).
+ * Do cartão, informa-se a fatura em aberto e o limite disponível; o total é a soma dos dois.
+ */
 export async function definirValoresIniciais(input: {
   dinheiro: number;
   vale: number;
   cartaoFatura: number;
-  cartaoLimite: number;
+  cartaoLimiteDisponivel: number;
   data?: string;
 }) {
-  for (const k of ["dinheiro", "vale", "cartaoFatura", "cartaoLimite"] as const)
+  for (const k of ["dinheiro", "vale", "cartaoFatura", "cartaoLimiteDisponivel"] as const)
     if (!Number.isFinite(Number(input[k]))) throw Object.assign(new Error(`Valor inválido em ${k}.`), { status: 400 });
   const data = input.data || hoje();
   await sheets.spreadsheets.values.update({
@@ -153,7 +158,7 @@ export async function definirValoresIniciais(input: {
     range: "Contas!B12:B16",
     valueInputOption: "RAW",
     requestBody: {
-      values: [[round2(Number(input.dinheiro))], [round2(Number(input.vale))], [round2(Number(input.cartaoFatura))], [round2(Number(input.cartaoLimite))], [serialDate(data)]],
+      values: [[round2(Number(input.dinheiro))], [round2(Number(input.vale))], [round2(Number(input.cartaoFatura))], [round2(Number(input.cartaoLimiteDisponivel))], [serialDate(data)]],
     },
   });
   return { iniciais: await valoresIniciais(), saldos: await saldos() };
@@ -186,13 +191,20 @@ export async function corrigirSaldo(input: { meio: (typeof MEIOS)[number]; valor
   return { meio: input.meio, anterior: atual, diferenca, saldos: await saldos() };
 }
 
-export async function atualizarLimite(limite: number) {
-  if (!(Number(limite) >= 0)) throw Object.assign(new Error("Limite inválido."), { status: 400 });
+/**
+ * Corrige o limite disponível do cartão hoje. A planilha guarda o disponível na data inicial
+ * (B15) e calcula o total como B15 + fatura inicial; para o disponível de hoje bater, o total
+ * precisa ser disponível de hoje + fatura atual, então B15 = disponível + fatura atual − fatura inicial.
+ */
+export async function atualizarLimiteDisponivel(disponivelHoje: number) {
+  const x = Number(disponivelHoje);
+  if (!Number.isFinite(x)) throw Object.assign(new Error("Limite disponível inválido."), { status: 400 });
+  const [atuais, ini] = await Promise.all([saldos(), valoresIniciais()]);
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: "Contas!B15",
     valueInputOption: "RAW",
-    requestBody: { values: [[round2(Number(limite))]] },
+    requestBody: { values: [[round2(x + atuais.cartaoFatura - ini.cartaoFatura)]] },
   });
   return saldos();
 }

@@ -130,7 +130,7 @@ export const tools: Anthropic.Tool[] = [
   },
   {
     name: "saldos",
-    description: "Saldos atuais: Dinheiro em conta, Vale, fatura do Cartão em aberto e limite disponível.",
+    description: "Saldos atuais: Dinheiro em conta, Vale, fatura do Cartão em aberto, limite disponível e limite total (disponível + fatura).",
     input_schema: { type: "object", properties: {} },
   },
   {
