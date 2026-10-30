@@ -1,0 +1,16 @@
+O projeto é de um assistente virtual, que combina o uso do claude code com diversos conectores e APIs, tornando ele capaz de organizar diversos processos.
+O assistente deve separar as esferas da vida do usuário por contas de e-mail, ou seja, o usuário pode utilizar seu e-mail pessoal e e-mails profissionais para organizar os conectores e administrar cada projeto de maneira separada.
+
+
+Essas são todas as funções que o assistente deve desempenhar.
+
+- Ligação com o whatsapp, capacidade de ler mensagens em um grupo solo e transformar em tasks e anotações.
+- Relatório de gastos, uma planilha de gastos que anota tudo que foi entrada e saída no mês todo. Gerenciador de despesas fixas e variáveis. 
+- Relatório de emails por conta, tbfelipe, Unifal, abc.
+- Notificações para assuntos importantes.
+- Resumo de conversas do whatsapp por lista.
+- gerenciador de tarefas, com aviso de horário, separado em tabelas diferentes: Trabalho, Academia, Faculdade, Etc.
+- Ligação com as anotações do Google keep, notiom e outros. Permitindo criar anotações e mapas mentais.
+- Organizar as esferas por email: Trabalho, Vida pessoal, Faculdade, projetos.
+- Gerenciador de Senhas e credenciais
+- Relatório diário de noticiais importantes.
