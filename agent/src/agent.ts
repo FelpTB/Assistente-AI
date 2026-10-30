@@ -15,8 +15,8 @@ const client = new Anthropic({
 const history = new Map<string, Anthropic.MessageParam[]>();
 const MAX_TURNS = 20;
 
-function systemPrompt(): string {
-  const agora = new Date().toLocaleString("pt-BR", {
+function agora(): string {
+  return new Date().toLocaleString("pt-BR", {
     timeZone: config.timezone,
     weekday: "long",
     year: "numeric",
@@ -25,8 +25,13 @@ function systemPrompt(): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-  return `Você é o assistente pessoal do Felipe, conversando com ele pelo WhatsApp.
-Agora é ${agora} (fuso America/Sao_Paulo, UTC-3). Ao montar datas ISO, use o fuso -03:00.
+}
+
+// O prompt de sistema precisa ser fixo: blocos de raciocínio (thinking) ficam presos ao
+// prompt em que foram criados, e a API rejeita o histórico se ele mudar. A data/hora vai
+// em cada mensagem do usuário.
+const SYSTEM_PROMPT = `Você é o assistente pessoal do Felipe, conversando com ele pelo WhatsApp.
+Cada mensagem dele começa com [agora: ...], a data e hora atuais (fuso America/Sao_Paulo, UTC-3). Ao montar datas ISO, use o fuso -03:00.
 
 O que você faz:
 - Tarefas (Notion), separadas por área: Trabalho, Academia, Faculdade, Projetos, Pessoal.
@@ -49,17 +54,16 @@ Como agir:
 Formato da resposta (WhatsApp):
 - Português, curto e direto. Use *negrito* com um asterisco, listas com "•". Sem tabelas, sem markdown de títulos (#).
 - Depois de executar, confirme em 1–2 linhas o que foi feito. Valores em R$ no formato brasileiro (R$ 1.234,56).`;
-}
 
 export async function handleMessage(chatId: string, text: string): Promise<string> {
   const msgs = history.get(chatId) ?? [];
-  msgs.push({ role: "user", content: text });
+  msgs.push({ role: "user", content: `[agora: ${agora()}]\n${text}` });
 
   for (let step = 0; step < 8; step++) {
     const res = await client.messages.create({
       model: config.anthropic.model,
       max_tokens: 2048,
-      system: systemPrompt(),
+      system: SYSTEM_PROMPT,
       tools,
       messages: msgs,
     });
@@ -91,6 +95,13 @@ export async function handleMessage(chatId: string, text: string): Promise<strin
 }
 
 function saveHistory(chatId: string, msgs: Anthropic.MessageParam[]) {
+  // Raciocínio de pedidos já respondidos não precisa voltar à API; guardá-lo só arrisca
+  // o erro "Invalid signature in thinking block" (ex.: depois de trocar o prompt ou o modelo).
+  msgs = msgs.map((m) =>
+    m.role === "assistant" && Array.isArray(m.content)
+      ? { ...m, content: m.content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking") }
+      : m,
+  );
   // Mantém só os últimos turnos, sempre começando numa mensagem de texto do usuário
   // (para não deixar um tool_result órfão no início).
   let trimmed = msgs;
