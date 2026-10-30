@@ -13,7 +13,7 @@ Escopo original: `requirements.txt.txt`.
 - **WhatsApp → Evolution API** da empresa (v2.3.7, https://evolution-api-production-8f8e.up.railway.app, instância `Felipe-Assistente`).
   Número conectado é o **pessoal** → o agente só responde no **grupo solo**, só a mensagens `fromMe`. Fase 1: conversar com o agente. Futuro: automatizar conversas.
 - **Hospedagem do agente → Railway** (mesmo projeto da Evolution), deploy pelo GitHub **FelpTB/Assistente-AI** (privado).
-  `Dockerfile` + `railway.json` na raiz constroem `agent/`; health check em `/`.
+  `Dockerfile` + `railway.json` na raiz constroem `agent/`; health check em `/health`. Dashboard em `/`.
 - **Senhas → app próprio** (repositório será trazido para esta pasta). O dashboard só integra/visualiza.
 - **Dashboard → web app próprio.**
 
@@ -69,6 +69,7 @@ senhas/     app de senhas (a importar)
    ⏳ Falta: credenciais, deploy no Railway, `/ativar` no grupo (passo a passo em `agent/README.md`)
 3. Notas no Google Keep; áudios e fotos de comprovantes
 4. Relatório diário (agenda + e-mails importantes + notícias) e notificações
-5. Dashboard web
+5. 🟡 Dashboard web em `agent/public` (servido pelo agente, login Google): status, tarefas por esfera, agenda, gastos
+   ⏳ Falta: URI de redirecionamento `/auth/callback` no Google Cloud; ligar esferas a contas de e-mail
 6. Integração do app de senhas
 7. Outras contas de e-mail; automação de conversas no WhatsApp

@@ -1,14 +1,23 @@
 import express from "express";
+import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { sendText, sentByAgent, setPresenceTyping } from "./evolution.js";
 import { handleMessage, resetHistory } from "./agent.js";
+import { registerAuthRoutes } from "./auth.js";
+import { registerDashboardRoutes } from "./dashboard.js";
 
 const app = express();
+app.set("trust proxy", 1); // Railway fica atrás de um proxy HTTPS
 app.use(express.json({ limit: "5mb" }));
 
-app.get("/", (_req, res) => {
+app.get("/health", (_req, res) => {
   res.json({ ok: true, servico: "assistente-ai", chatsPermitidos: config.allowedChats.length });
 });
+
+// Dashboard: a página é pública (só tem o botão de login); os dados ficam em /api, que exige login.
+registerAuthRoutes(app);
+registerDashboardRoutes(app);
+app.use(express.static(fileURLToPath(new URL("../public", import.meta.url))));
 
 const processed = new Set<string>();
 const queues = new Map<string, Promise<void>>();
@@ -118,4 +127,5 @@ app.listen(config.port, () => {
     console.log('Nenhum chat liberado. Envie "/ativar" no seu grupo solo para descobrir o ID.');
   else console.log(`Chats liberados: ${config.allowedChats.join(", ")}`);
   console.log(`Modelo: ${config.anthropic.model}`);
+  console.log(`Dashboard: ${config.dashboard.publicUrl} (login: ${config.dashboard.emails.join(", ")})`);
 });

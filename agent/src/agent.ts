@@ -100,3 +100,9 @@ function saveHistory(chatId: string, msgs: Anthropic.MessageParam[]) {
 export function resetHistory(chatId: string) {
   history.delete(chatId);
 }
+
+/** Verifica se a chave e o modelo da Claude API respondem (não gera texto, não tem custo). */
+export async function checkClaude(): Promise<string> {
+  const m = await client.models.retrieve(config.anthropic.model);
+  return m.display_name ?? m.id;
+}

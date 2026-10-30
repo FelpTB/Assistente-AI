@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "node:crypto";
 
 function req(name: string): string {
   const v = process.env[name];
@@ -51,4 +52,21 @@ export const config = {
 
   // Prefixo das respostas do agente: deixa claro no grupo o que veio do assistente.
   replyPrefix: opt("REPLY_PREFIX", "🤖 "),
+
+  dashboard: {
+    // Endereço público do serviço; o Railway informa o domínio em RAILWAY_PUBLIC_DOMAIN.
+    publicUrl: (
+      opt("PUBLIC_URL") ||
+      (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${opt("PORT", "3000")}`)
+    ).replace(/\/$/, ""),
+    // Quem pode entrar no dashboard (login com Google). Vários: separe por vírgula.
+    emails: opt("DASHBOARD_EMAILS", "felipe@abcadvise.com.br")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+    // Assina o cookie de sessão. Sem a variável, deriva do WEBHOOK_TOKEN.
+    sessionSecret:
+      opt("DASHBOARD_SESSION_SECRET") ||
+      crypto.createHash("sha256").update(`dashboard:${req("WEBHOOK_TOKEN")}`).digest("hex"),
+  },
 };

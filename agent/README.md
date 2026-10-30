@@ -67,6 +67,21 @@ npm run webhook -- https://SEU-AGENTE.up.railway.app
 Mande `/ativar` no grupo solo. O agente responde com o ID do chat (ex.: `1203630...@g.us`).
 Cole em `ALLOWED_CHAT_JIDS` no Railway e aguarde o redeploy. Pronto: mande `oi`.
 
+### 8. Dashboard
+O dashboard fica no mesmo endereço do agente (`https://SEU-AGENTE.up.railway.app/`), com login pelo Google.
+1. No Google Cloud, no mesmo OAuth client, adicione em *URIs de redirecionamento autorizados*:
+   `https://SEU-AGENTE.up.railway.app/auth/callback`
+2. Pronto. Só os e-mails de `DASHBOARD_EMAILS` entram (padrão: felipe@abcadvise.com.br).
+
+| Variável (opcional) | Para quê |
+|---|---|
+| `DASHBOARD_EMAILS` | E-mails com acesso, separados por vírgula |
+| `PUBLIC_URL` | Endereço público, se usar domínio próprio (o Railway já informa o padrão) |
+| `DASHBOARD_SESSION_SECRET` | Assina o cookie de login; sem ela, deriva do `WEBHOOK_TOKEN` |
+
+Mostra status do agente e das integrações, tarefas por esfera (Notion, com criação e mudança de status),
+agenda dos próximos 7 dias e gastos do mês. Os dados são lidos na hora — nada fica guardado no servidor.
+
 ---
 
 ## Estrutura
@@ -74,6 +89,9 @@ Cole em `ALLOWED_CHAT_JIDS` no Railway e aguarde o redeploy. Pronto: mande `oi`.
 src/index.ts        servidor e webhook (filtros de segurança)
 src/agent.ts        conversa com o Claude + execução das ferramentas
 src/evolution.ts    envio de mensagens
+src/auth.ts         login do dashboard (Google)
+src/dashboard.ts    API do dashboard (/api/*)
+public/             interface do dashboard (HTML/JS, sem build)
 src/tools/          tarefas (Notion), agenda (Calendar), gastos (Sheets), emails (Gmail)
 scripts/            google-auth, configurar-webhook
 ```

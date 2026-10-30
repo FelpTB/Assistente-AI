@@ -44,6 +44,12 @@ export async function setPresenceTyping(chatJid: string): Promise<void> {
   }
 }
 
+/** Estado da conexão do WhatsApp na Evolution ("open" = conectado). */
+export async function connectionState(): Promise<string> {
+  const r = await call<any>("GET", `/instance/connectionState/${encodeURIComponent(instance)}`);
+  return r?.instance?.state ?? r?.state ?? "desconhecido";
+}
+
 export async function fetchGroups(): Promise<Array<{ id: string; subject: string; size?: number }>> {
   return call("GET", `/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`);
 }
