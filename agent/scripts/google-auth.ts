@@ -1,16 +1,16 @@
 /**
  * Gera o GOOGLE_REFRESH_TOKEN. Rode no seu computador:
- *   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... npm run google-auth
+ *   GOOGLE_ID_CLIENT=... GOOGLE_SECRET_KEY=... npm run google-auth
  * Abra o link, faça login com felipe@abcadvise.com.br e copie o token exibido.
  */
 import "dotenv/config";
 import http from "node:http";
 import { google } from "googleapis";
 
-const clientId = process.env.GOOGLE_CLIENT_ID;
-const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const clientId = process.env.GOOGLE_ID_CLIENT;
+const clientSecret = process.env.GOOGLE_SECRET_KEY;
 if (!clientId || !clientSecret) {
-  console.error("Defina GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET (no .env ou na linha de comando).");
+  console.error("Defina GOOGLE_ID_CLIENT e GOOGLE_SECRET_KEY (no .env ou na linha de comando).");
   process.exit(1);
 }
 

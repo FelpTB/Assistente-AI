@@ -19,7 +19,7 @@ export const config = {
 
   evolution: {
     url: req("EVOLUTION_URL").replace(/\/$/, ""),
-    apiKey: req("EVOLUTION_API_KEY"),
+    apiKey: req("EVOLUTION_AUTH_KEY"),
     instance: req("EVOLUTION_INSTANCE"),
   },
 
@@ -31,18 +31,18 @@ export const config = {
     .filter(Boolean),
 
   anthropic: {
-    apiKey: req("ANTHROPIC_API_KEY"),
+    apiKey: req("CLAUDE_API_KEY"),
     model: opt("ANTHROPIC_MODEL", "claude-sonnet-5-5"),
   },
 
   notion: {
-    token: req("NOTION_TOKEN"),
+    token: req("TOKEN_NOTION"),
     tasksDataSourceId: opt("NOTION_TASKS_DATA_SOURCE_ID", "5072380e-9871-4bb0-8eed-695dca78ed8b"),
   },
 
   google: {
-    clientId: req("GOOGLE_CLIENT_ID"),
-    clientSecret: req("GOOGLE_CLIENT_SECRET"),
+    clientId: req("GOOGLE_ID_CLIENT"),
+    clientSecret: req("GOOGLE_SECRET_KEY"),
     refreshToken: req("GOOGLE_REFRESH_TOKEN"),
     expensesSpreadsheetId: opt("GOOGLE_EXPENSES_SHEET_ID", "1ATjK3sX3y8_IbgA38cqs1GU3seBus5VAI2441vuzTUI"),
     calendarId: opt("GOOGLE_CALENDAR_ID", "primary"),

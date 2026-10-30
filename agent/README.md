@@ -28,11 +28,11 @@ As respostas começam com 🤖, e o agente ignora as próprias mensagens.
 ### 1. Credenciais
 | Variável | Onde conseguir |
 |---|---|
-| `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys |
-| `NOTION_TOKEN` | notion.so/profile/integrations → *Nova integração* (interna) → copie o token. Depois, na página **Assistente AI** do Notion: `⋯` → *Conexões* → adicione a integração. |
-| `EVOLUTION_API_KEY` | No Railway, serviço da Evolution → Variables → `AUTHENTICATION_API_KEY` |
+| `CLAUDE_API_KEY` | console.anthropic.com → API Keys |
+| `TOKEN_NOTION` | notion.so/profile/integrations → *Nova integração* (interna) → copie o token. Depois, na página **Assistente AI** do Notion: `⋯` → *Conexões* → adicione a integração. |
+| `EVOLUTION_AUTH_KEY` | No Railway, serviço da Evolution → Variables → `AUTHENTICATION_API_KEY` |
 | `WEBHOOK_TOKEN` | Qualquer texto aleatório longo (ex.: gerador de senhas, 40 caracteres) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Passo 2 |
+| `GOOGLE_ID_CLIENT` / `GOOGLE_SECRET_KEY` | Passo 2 |
 | `GOOGLE_REFRESH_TOKEN` | Passo 3 |
 
 ### 2. Google Cloud (OAuth)
@@ -45,7 +45,7 @@ As respostas começam com 🤖, e o agente ignora as próprias mensagens.
 ```bash
 cd agent
 npm install
-cp .env.example .env      # preencha GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET
+cp .env.example .env      # preencha GOOGLE_ID_CLIENT e GOOGLE_SECRET_KEY
 npm run google-auth       # abra o link, autorize, copie o GOOGLE_REFRESH_TOKEN
 ```
 
