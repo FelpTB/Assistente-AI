@@ -142,6 +142,7 @@ export const metricasBanco = cache(10 * 60_000, async () => {
     },
     compradores: {
       total: compradores.length,
+      novos24h: conta(compradores, recente(1)),
       novos7d: conta(compradores, recente(7)),
       novos30d: conta(compradores, recente(30)),
       telefoneVerificadoPct: pct(conta(compradores, (c) => !!c.telefone_verificado), compradores.length),
@@ -152,7 +153,10 @@ export const metricasBanco = cache(10 * 60_000, async () => {
     },
     fornecedores: {
       total: fornecedores.length,
+      novos24h: conta(fornecedores, recente(1)),
+      novos7d: conta(fornecedores, recente(7)),
       novos30d: conta(fornecedores, recente(30)),
+      porDia: seriePorDia(fornecedores, 30),
       assinaturaAtiva: conta(fornecedores, (f) => !!f.assinatura_ativa),
       cadastroIncompleto: conta(fornecedores, (f) => !!f.cadastro_incompleto),
       completudeMedia: completude.length ? Math.round(completude.reduce((a, b) => a + b, 0) / completude.length) : null,

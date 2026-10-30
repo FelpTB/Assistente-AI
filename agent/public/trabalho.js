@@ -115,6 +115,7 @@ export function renderBuscaFornecedor(el) {
       <section class="card span-4"><div class="card-head"><h2>Site</h2><span class="muted small">Lovable</span></div><div id="bf-site"></div></section>
       <section class="card span-8"><div class="card-head"><h2>Automações</h2><span class="muted small">n8n</span></div><div id="bf-n8n-kpis"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Consultas</h2><span class="muted small" id="bf-banco-at">Supabase</span></div><div id="bf-consultas"></div></section>
+      <section class="card span-12"><div class="card-head"><h2>Cadastros</h2><span class="muted small">compradores e fornecedores</span></div><div id="bf-cadastros"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Compradores</h2></div><div id="bf-compradores"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Fornecedores</h2></div><div id="bf-fornecedores"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Perfis de empresa</h2><span class="muted small">company_profile</span></div><div id="bf-perfis"></div></section>
@@ -184,7 +185,7 @@ function drawExecucoes(ultimas, erros) {
 }
 
 async function carregarBanco(q) {
-  const ids = ["#bf-consultas", "#bf-compradores", "#bf-fornecedores", "#bf-perfis"];
+  const ids = ["#bf-consultas", "#bf-cadastros", "#bf-compradores", "#bf-fornecedores", "#bf-perfis"];
   ids.forEach((id) => ($(id).innerHTML = `<div class="loading">Consultando o banco…</div>`));
   try {
     const b = await api(`/projetos/busca-fornecedor/banco${q}`);
@@ -219,14 +220,23 @@ function drawBanco(b) {
   desenharGraficoConsultas();
 
   const u = b.compradores;
+  const f = b.fornecedores;
+  $("#bf-cadastros").innerHTML = `
+    <div class="kpis kpis-2">
+      ${kpi("Compradores novos", `${num(u.novos24h)} <span class="muted small-value">em 24 h</span>`, `${num(u.novos7d)} em 7 dias · ${num(u.novos30d)} em 30 dias`)}
+      ${kpi("Fornecedores novos", `${num(f.novos24h)} <span class="muted small-value">em 24 h</span>`, `${num(f.novos7d)} em 7 dias · ${num(f.novos30d)} em 30 dias`)}
+    </div>
+    <h3 class="small muted" style="margin:16px 0 8px">Cadastros por dia · 30 dias</h3>
+    <div id="bf-graf-cadastros"></div>`;
+  desenharGraficoCadastros();
+
   $("#bf-compradores").innerHTML = `
     <div class="kpis kpis-2">
-      ${kpi("Compradores", num(u.total), `${num(u.novos7d)} novos em 7 dias · ${num(u.novos30d)} em 30`)}
+      ${kpi("Compradores", num(u.total), `${num(u.novos30d)} novos em 30 dias`)}
       ${kpi("Buscas realizadas", num(u.buscasRealizadas), `${u.telefoneVerificadoPct}% com telefone verificado · ${num(u.comAgente)} com agente`)}
     </div>
     <h3 class="small muted" style="margin:14px 0 8px">Por tier</h3>${hBars(u.porTier.map((x) => ({ label: x.nome, value: x.n })), num)}`;
 
-  const f = b.fornecedores;
   $("#bf-fornecedores").innerHTML = `
     <div class="kpis kpis-2">
       ${kpi("Fornecedores", num(f.total), `${num(f.novos30d)} novos em 30 dias · ${num(f.cadastroIncompleto)} com cadastro incompleto`)}
@@ -257,6 +267,25 @@ function desenharGraficoConsultas() {
   );
 }
 
+function desenharGraficoCadastros() {
+  const el = $("#bf-graf-cadastros");
+  if (!bancoCache || !el) return;
+  const c = bancoCache.compradores.porDia;
+  const f = bancoCache.fornecedores.porDia;
+  barChart(
+    el,
+    {
+      labels: c.map((d) => fmtData(d.data, { semana: false })),
+      series: [
+        { name: "Compradores", color: "--series-1", values: c.map((d) => d.n) },
+        { name: "Fornecedores", color: "--series-2", values: f.map((d) => d.n) },
+      ],
+    },
+    { height: 200, fmt: (v) => num(v), title: "Cadastros por dia" },
+  );
+}
+
 export function redesenharTrabalho() {
   desenharGraficoConsultas();
+  desenharGraficoCadastros();
 }
