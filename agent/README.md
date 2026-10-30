@@ -79,8 +79,10 @@ O dashboard fica no mesmo endereço do agente (`https://SEU-AGENTE.up.railway.ap
 | `PUBLIC_URL` | Endereço público, se usar domínio próprio (o Railway já informa o padrão) |
 | `DASHBOARD_SESSION_SECRET` | Assina o cookie de login; sem ela, deriva do `WEBHOOK_TOKEN` |
 
-Mostra status do agente e das integrações, tarefas por esfera (Notion, com criação e mudança de status),
-agenda dos próximos 7 dias e gastos do mês. Os dados são lidos na hora — nada fica guardado no servidor.
+- **Visão geral:** status das integrações, saldos, e-mails de hoje, tarefas por esfera e agenda.
+- **Finanças:** saldos de Dinheiro, Cartão e Vale; relatório por período; gráficos de entradas e saídas por mês e da evolução dos saldos; lista de lançamentos; formulários para inicializar e corrigir saldos.
+- **Esferas:** indicadores e quadro de tarefas de cada área, com painéis próprios (Trabalho: e-mails do dia e resumo com IA sob demanda).
+- Tema claro, escuro ou automático. Os dados são lidos na hora; nada fica guardado no servidor.
 
 ---
 
@@ -91,7 +93,7 @@ src/agent.ts        conversa com o Claude + execução das ferramentas
 src/evolution.ts    envio de mensagens
 src/auth.ts         login do dashboard (Google)
 src/dashboard.ts    API do dashboard (/api/*)
-public/             interface do dashboard (HTML/JS, sem build)
+public/             interface do dashboard (HTML/JS em módulos, sem build): app, financas, charts, util
 src/tools/          tarefas (Notion), agenda (Calendar), gastos (Sheets), emails (Gmail)
 scripts/            google-auth, configurar-webhook
 ```

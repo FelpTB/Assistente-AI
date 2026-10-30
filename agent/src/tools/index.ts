@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { AREAS, PRIORIDADES, STATUS, criarTarefa, listarTarefas, atualizarTarefa } from "./tarefas.js";
 import { criarEvento, listarAgenda, removerEvento } from "./agenda.js";
-import { MEIOS, TIPOS, lancarGasto, resumoGastos, listarCategorias, saldos } from "./gastos.js";
+import { MEIOS, TIPOS, corrigirSaldo, lancarGasto, resumoGastos, listarCategorias, saldos } from "./gastos.js";
 import { buscarEmails } from "./emails.js";
 
 export const tools: Anthropic.Tool[] = [
@@ -115,6 +115,20 @@ export const tools: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "corrigir_saldo",
+    description:
+      "Corrige um saldo para o valor real que o usuário informar (ex.: 'meu saldo na conta é 1.230'). Lança a diferença como Ajuste, que não entra nos relatórios de gastos. Para o Cartão, o valor é a fatura em aberto.",
+    input_schema: {
+      type: "object",
+      properties: {
+        meio: { type: "string", enum: [...MEIOS] },
+        valorReal: { type: "number" },
+        motivo: { type: "string" },
+      },
+      required: ["meio", "valorReal"],
+    },
+  },
+  {
     name: "saldos",
     description: "Saldos atuais: Dinheiro em conta, Vale, fatura do Cartão em aberto e limite disponível.",
     input_schema: { type: "object", properties: {} },
@@ -153,6 +167,7 @@ const handlers: Record<string, (input: any) => Promise<unknown>> = {
   lancar_gasto: lancarGasto,
   listar_categorias: listarCategorias,
   saldos: saldos,
+  corrigir_saldo: (i) => corrigirSaldo({ ...i, origem: "WhatsApp" }),
   resumo_gastos: resumoGastos,
   buscar_emails: buscarEmails,
 };

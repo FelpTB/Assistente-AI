@@ -6,6 +6,10 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Assistente AI</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233b5bdb'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='sans-serif'>AI</text></svg>" />
+  <script>
+    // Aplica o tema salvo antes de desenhar a página (evita piscar claro→escuro).
+    try { const t = localStorage.getItem("tema"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+  </script>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -23,6 +27,11 @@
       <div class="brand"><div class="logo small">AI</div><span>Assistente</span></div>
       <nav id="nav"></nav>
       <div class="sidebar-foot">
+        <div class="theme-switch" role="group" aria-label="Tema">
+          <button data-tema="auto" title="Seguir o sistema">Auto</button>
+          <button data-tema="light">Claro</button>
+          <button data-tema="dark">Escuro</button>
+        </div>
         <span id="user-email" class="muted"></span>
         <button id="logout" class="link">Sair</button>
       </div>

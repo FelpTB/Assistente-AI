@@ -34,9 +34,10 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 ### Planilha "Controle de Gastos" (Sheets)
 - Registro **contínuo** (não separado por mês); relatórios filtram por data. Saldo em 3 meios:
   **Dinheiro** (conta/débito/Pix), **Cartão** (crédito: compras somam na fatura, o pagamento libera o limite) e **Vale** (benefício da empresa, separado do Dinheiro).
-- **Lançamentos** (A:I): Data · Descrição · Tipo (Entrada/Saída/Pagamento de fatura) · Natureza (Fixa/Variável) · Categoria · Valor · Meio (Dinheiro/Cartão/Vale) · Origem · Mês (automático, ARRAYFORMULA em I1 — não escrever na coluna I).
+- **Lançamentos** (A:I): Data · Descrição · Tipo (Entrada/Saída/Pagamento de fatura/Ajuste) · Natureza (Fixa/Variável) · Categoria · Valor · Meio (Dinheiro/Cartão/Vale) · Origem · Mês (automático, ARRAYFORMULA em I1 — não escrever na coluna I).
   "Pagamento de fatura" sai do Dinheiro, zera parte da fatura do Cartão e não é despesa (as compras já contaram). Categoria escolhida pelo agente a partir da descrição.
-- **Contas**: saldos atuais em B4:B7 (Dinheiro, Vale, fatura do Cartão, limite disponível) — o agente lê daqui. Valores iniciais (saldos, fatura, limite, data) em B12:B16, preenchidos pelo usuário.
+  "Ajuste" (categoria "Ajuste de saldo", valor com sinal) corrige um saldo sem entrar nos relatórios; criado pelo formulário de correção ou pela tool `corrigir_saldo`.
+- **Contas**: saldos atuais em B4:B7 (Dinheiro, Vale, fatura do Cartão, limite disponível) — o agente lê daqui. Valores iniciais (saldos, fatura, limite, data) em B12:B16, gravados pelo formulário "Inicializar" da aba Finanças. Movimento por meio em B19:E21 (entradas, saídas, faturas pagas, ajustes).
 - **Despesas Fixas**: Descrição · Categoria · Valor · Dia de vencimento · Meio · Ativa (checkbox).
 - **Resumo**: período em B3 (De) e B4 (Até), padrão = mês atual; entradas, saídas, por categoria, por meio, faturas pagas e saldos atuais.
 - **Categorias**: lista editável (Categoria · Tipo).
@@ -72,7 +73,7 @@ senhas/     app de senhas (a importar)
 2. ✅ Agente no ar no Railway (https://assistente-ai-claude-officetools.up.railway.app), conversando no grupo solo
 3. Notas no Google Keep; áudios e fotos de comprovantes
 4. Relatório diário (agenda + e-mails importantes + notícias) e notificações
-5. ✅ Dashboard web em `agent/public` (servido pelo agente, login Google): status, tarefas por esfera, agenda, gastos com saldos
+5. ✅ Dashboard web em `agent/public` (servido pelo agente, login Google, tema claro/escuro): visão geral, **Finanças** (saldos, gráficos, lançamentos, inicializar/corrigir), esferas com painéis (Trabalho: e-mails do dia + resumo por IA) e tarefas
    ⏳ Falta: ligar esferas a contas de e-mail
 6. Integração do app de senhas
 7. Outras contas de e-mail; automação de conversas no WhatsApp

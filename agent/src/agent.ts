@@ -106,6 +106,22 @@ export function resetHistory(chatId: string) {
   history.delete(chatId);
 }
 
+/** Pede ao Claude um texto curto (relatórios do dashboard). Sem ferramentas, sem histórico. */
+export async function gerarTexto(system: string, prompt: string): Promise<string> {
+  const res = await client.messages.create({
+    model: config.anthropic.model,
+    max_tokens: 4000,
+    system,
+    messages: [{ role: "user", content: prompt }],
+  });
+  if (res.stop_reason === "refusal") throw new Error("O modelo não gerou o resumo para este conteúdo.");
+  return res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+}
+
 /** Verifica se a chave e o modelo da Claude API respondem (não gera texto, não tem custo). */
 export async function checkClaude(): Promise<string> {
   const m = await client.models.retrieve(config.anthropic.model);

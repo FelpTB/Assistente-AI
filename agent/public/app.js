@@ -1,49 +1,32 @@
-// Dashboard do Assistente AI — sem build: HTML + JS puro, dados via /api.
-const TZ = "America/Sao_Paulo";
-const $ = (sel, el = document) => el.querySelector(sel);
+// Dashboard do Assistente AI — sem build: HTML + JS puro (módulos ES), dados via /api.
+import { $, api, addDias, brl, diaDe, esc, fill, fmtData, fmtHora, hojeISO, setOnUnauthorized } from "./util.js";
+import { renderFinancas, redesenharFinancas } from "./financas.js";
+
 const main = $("#main");
 let me = null;
 let tarefasCache = null; // todas as tarefas abertas, para contagens por esfera
 
-const esc = (s) =>
-  String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const brl = (n) => (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-async function api(path, opts = {}) {
-  const res = await fetch(`/api${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", ...(opts.headers ?? {}) },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  if (res.status === 401) {
-    showLogin();
-    throw new Error("Sessão expirada. Entre novamente.");
-  }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.erro ?? `Erro ${res.status}`);
-  return data;
-}
-
-// ---- Datas -----------------------------------------------------------------
-const isDateOnly = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s ?? "");
-const hojeISO = () => new Date().toLocaleDateString("sv-SE", { timeZone: TZ });
-function fmtData(s, { hora = true } = {}) {
-  if (!s) return "";
-  if (isDateOnly(s)) {
-    const [y, m, d] = s.split("-").map(Number);
-    return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "short", weekday: "short" });
-  }
-  const d = new Date(s);
-  const dia = d.toLocaleDateString("pt-BR", { timeZone: TZ, day: "2-digit", month: "short", weekday: "short" });
-  return hora ? `${dia} ${d.toLocaleTimeString("pt-BR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" })}` : dia;
-}
-const diaDe = (s) => (isDateOnly(s) ? s : new Date(s).toLocaleDateString("sv-SE", { timeZone: TZ }));
 const atrasada = (t) => t.prazo && t.status !== "Concluída" && diaDe(t.prazo) < hojeISO();
+
+// ---- Tema ------------------------------------------------------------------
+function aplicarTema(t) {
+  if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+  try {
+    t === "auto" ? localStorage.removeItem("tema") : localStorage.setItem("tema", t);
+  } catch {}
+  document.querySelectorAll(".theme-switch button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tema === t));
+  redesenharFinancas();
+}
+document.querySelectorAll(".theme-switch button").forEach((b) => (b.onclick = () => aplicarTema(b.dataset.tema)));
+aplicarTema(document.documentElement.dataset.theme ?? "auto");
 
 // ---- Navegação -------------------------------------------------------------
 function route() {
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
-  return h.startsWith("esfera/") ? { page: "esfera", area: h.slice(7) } : { page: "geral" };
+  if (h.startsWith("esfera/")) return { page: "esfera", area: h.slice(7) };
+  if (h === "financas") return { page: "financas" };
+  return { page: "geral" };
 }
 
 function renderNav() {
@@ -51,6 +34,7 @@ function renderNav() {
   const cont = (a) => (tarefasCache ? tarefasCache.filter((t) => t.area === a).length : "");
   $("#nav").innerHTML =
     `<a href="#/" class="${r.page === "geral" ? "active" : ""}">Visão geral</a>` +
+    `<a href="#/financas" class="${r.page === "financas" ? "active" : ""}">Finanças</a>` +
     `<div class="sep">Esferas</div>` +
     me.areas
       .map(
@@ -62,21 +46,27 @@ function renderNav() {
 
 window.addEventListener("hashchange", render);
 
+// Links "#secao" rolam até a seção sem trocar a página.
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('a[href^="#"]:not([href^="#/"])');
+  if (!a) return;
+  e.preventDefault();
+  document.getElementById(a.getAttribute("href").slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(redesenharFinancas, 150);
+});
+
 function render() {
   renderNav();
   const r = route();
+  window.scrollTo(0, 0);
   if (r.page === "esfera" && me.areas.includes(r.area)) renderEsfera(r.area);
+  else if (r.page === "financas") renderFinancas(main);
   else renderGeral();
-}
-
-/** Carrega um card de forma independente: se uma integração falhar, as outras continuam. */
-async function fill(el, loader, draw) {
-  el.innerHTML = `<div class="loading">Carregando…</div>`;
-  try {
-    el.innerHTML = draw(await loader());
-  } catch (err) {
-    el.innerHTML = `<div class="error">${esc(err.message)}</div>`;
-  }
 }
 
 async function carregarTarefas(force = false) {
@@ -88,35 +78,28 @@ async function carregarTarefas(force = false) {
 // ---- Visão geral -----------------------------------------------------------
 function renderGeral() {
   const hoje = hojeISO();
-  const inicioMes = `${hoje.slice(0, 7)}-01`;
   main.innerHTML = `
     <div class="page-head">
-      <div><h1>Visão geral</h1><div class="muted">${esc(fmtData(hojeISO()))}</div></div>
+      <div><h1>Visão geral</h1><div class="muted">${esc(fmtData(hoje))}</div></div>
       <button class="btn" id="refresh">Atualizar</button>
     </div>
     <div class="grid">
       <section class="card span-12"><div class="card-head"><h2>Status do agente</h2></div><div id="c-status"></div></section>
+      <section class="card span-8"><div class="card-head"><h2>Finanças</h2><a href="#/financas" class="small">Abrir finanças</a></div><div id="c-fin"></div></section>
+      <section class="card span-4"><div class="card-head"><h2>E-mails de hoje</h2><a href="#/esfera/Trabalho" class="small">Ver relatório</a></div><div id="c-emails"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Esferas</h2><span class="muted small">tarefas abertas</span></div><div id="c-areas"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Próximas tarefas</h2></div><div id="c-tarefas"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Agenda · 7 dias</h2></div><div id="c-agenda"></div></section>
-      <section class="card span-12">
-        <div class="card-head"><h2>Gastos</h2>
-          <div class="periodo"><input type="date" id="de" value="${inicioMes}" /><span class="muted">até</span><input type="date" id="ate" value="${hoje}" /></div>
-        </div>
-        <div id="c-gastos"></div>
-      </section>
     </div>`;
   $("#refresh").onclick = () => {
     tarefasCache = null;
     renderGeral();
   };
-  const carregarGastos = () => fill($("#c-gastos"), () => api(`/gastos?de=${$("#de").value}&ate=${$("#ate").value}`), drawGastos);
-  $("#de").onchange = carregarGastos;
-  $("#ate").onchange = carregarGastos;
 
   fill($("#c-status"), () => api("/status"), drawStatus);
   fill($("#c-agenda"), () => api("/agenda?dias=7"), drawAgenda);
-  carregarGastos();
+  fill($("#c-fin"), () => api(`/gastos?de=${hoje.slice(0, 7)}-01&ate=${hoje}`), drawFinResumo);
+  fill($("#c-emails"), () => api("/emails/hoje"), drawEmailsResumo);
   const tarefas = carregarTarefas();
   fill($("#c-areas"), () => tarefas, drawAreas);
   fill($("#c-tarefas"), () => tarefas, (ts) => drawListaTarefas(ts.filter((t) => t.prazo).slice(0, 8)));
@@ -130,10 +113,35 @@ function drawStatus(s) {
   ];
   return `<div class="status-list">${itens
     .map(
-      (i) => `<div class="status-item"><span class="dot ${i.ok ? "ok" : "bad"}"></span>
+      (i) => `<div class="status-item"><span class="dot ${i.ok ? "ok" : "bad"}" aria-label="${i.ok ? "ok" : "com erro"}"></span>
         <div><div>${esc(i.nome)}</div><div class="detail">${esc(i.detalhe)}</div></div></div>`,
     )
     .join("")}</div>`;
+}
+
+function drawFinResumo(g) {
+  const s = g.saldosAtuais;
+  const sinal = (n) => (n < 0 ? "neg" : "");
+  return `
+    <div class="kpis kpis-4 saldos">
+      <div class="kpi"><div class="label">Dinheiro</div><div class="value ${sinal(s.dinheiro)}">${brl(s.dinheiro)}</div></div>
+      <div class="kpi"><div class="label">Vale</div><div class="value ${sinal(s.vale)}">${brl(s.vale)}</div></div>
+      <div class="kpi"><div class="label">Fatura do cartão</div><div class="value">${brl(s.cartaoFatura)}</div></div>
+      <div class="kpi"><div class="label">Limite disponível</div><div class="value ${sinal(s.cartaoLimiteDisponivel)}">${brl(s.cartaoLimiteDisponivel)}</div></div>
+    </div>
+    <div class="small muted" style="margin-top:10px">Este mês: entradas <b class="pos">${brl(g.entradas)}</b> · saídas <b class="neg">${brl(g.saidas)}</b> · resultado <b>${brl(g.saldoDoPeriodo)}</b></div>`;
+}
+
+function drawEmailsResumo(es) {
+  const relevantes = es.filter((e) => e.categoria !== "Promoções" && e.categoria !== "Social");
+  const naoLidos = relevantes.filter((e) => e.naoLido).length;
+  const importantes = relevantes.filter((e) => e.importante).length;
+  return `
+    <div class="kpis kpis-2">
+      <div class="kpi"><div class="label">Recebidos</div><div class="value">${es.length}</div><div class="small muted">${relevantes.length} relevantes</div></div>
+      <div class="kpi"><div class="label">Não lidos</div><div class="value">${naoLidos}</div><div class="small muted">${importantes} importantes</div></div>
+    </div>
+    ${relevantes.slice(0, 3).map((e) => `<div class="mini-mail ${e.naoLido ? "unread" : ""}"><span class="title">${esc(e.assunto)}</span><span class="muted small">${esc(remetente(e.de))}</span></div>`).join("")}`;
 }
 
 function drawAreas(ts) {
@@ -166,77 +174,32 @@ function drawAgenda(evs) {
   if (!evs.length) return `<div class="empty">Nada na agenda nos próximos 7 dias.</div>`;
   return `<div class="list">${evs
     .map(
-      (e) => `<div class="row"><span class="when">${esc(fmtData(e.inicio, { hora: !isDateOnly(e.inicio) }))}</span>
+      (e) => `<div class="row"><span class="when">${esc(fmtData(e.inicio, { hora: !e.inicio?.match(/^\d{4}-\d{2}-\d{2}$/) }))}</span>
         <div class="grow"><div class="title">${esc(e.titulo ?? "(sem título)")}</div>
         ${e.local ? `<div class="meta">${esc(e.local)}</div>` : ""}</div></div>`,
     )
     .join("")}</div>`;
 }
 
-function drawGastos(g) {
-  const cats = Object.entries(g.porCategoria ?? {}).sort((a, b) => b[1] - a[1]);
-  const max = Math.max(...cats.map((c) => c[1]), 1);
-  const s = g.saldosAtuais;
-  const sinal = (n) => (n < 0 ? "neg" : "");
-  return `
-    <h3 class="small muted" style="margin-bottom:8px">Saldos atuais</h3>
-    <div class="kpis saldos">
-      <div class="kpi"><div class="label">Dinheiro em conta</div><div class="value ${sinal(s.dinheiro)}">${brl(s.dinheiro)}</div></div>
-      <div class="kpi"><div class="label">Vale</div><div class="value ${sinal(s.vale)}">${brl(s.vale)}</div></div>
-      <div class="kpi"><div class="label">Cartão · fatura em aberto</div><div class="value">${brl(s.cartaoFatura)}</div>
-        <div class="small muted">Limite disponível <span class="${sinal(s.cartaoLimiteDisponivel)}">${brl(s.cartaoLimiteDisponivel)}</span></div></div>
-    </div>
-    <h3 class="small muted" style="margin-bottom:8px">No período</h3>
-    <div class="kpis">
-      <div class="kpi"><div class="label">Entradas</div><div class="value pos">${brl(g.entradas)}</div></div>
-      <div class="kpi"><div class="label">Saídas</div><div class="value neg">${brl(g.saidas)}</div>
-        <div class="small muted">${Object.entries(g.saidasPorMeio ?? {}).map(([m, v]) => `${esc(m)} ${brl(v)}`).join(" · ")}</div></div>
-      <div class="kpi"><div class="label">Saldo do período</div><div class="value ${g.saldoDoPeriodo >= 0 ? "pos" : "neg"}">${brl(g.saldoDoPeriodo)}</div>
-        <div class="small muted">Faturas pagas ${brl(g.faturasPagas)}</div></div>
-    </div>
-    <div class="grid">
-      <div class="span-6">
-        <h3 class="small muted" style="margin-bottom:8px">Saídas por categoria</h3>
-        ${
-          cats.length
-            ? `<div class="bars">${cats
-                .map(
-                  ([c, v]) => `<div class="bar-row"><span class="name" title="${esc(c)}">${esc(c)}</span>
-                  <div class="bar"><span style="width:${(v / max) * 100}%"></span></div><span class="val">${brl(v)}</span></div>`,
-                )
-                .join("")}</div>`
-            : `<div class="empty">Sem saídas neste mês.</div>`
-        }
-        <div class="small muted" style="margin-top:12px">Fixas pagas ${brl(g.fixasPagas)} · Variáveis ${brl(g.variaveis)}</div>
-      </div>
-      <div class="span-6">
-        <h3 class="small muted" style="margin-bottom:8px">Últimos lançamentos</h3>
-        ${
-          g.ultimosLancamentos?.length
-            ? `<div class="list">${[...g.ultimosLancamentos]
-                .reverse()
-                .map(
-                  (l) => `<div class="row"><span class="when">${esc(fmtData(l.data))}</span>
-                  <div class="grow"><div class="title">${esc(l.descricao)}</div><div class="meta"><span>${esc(l.categoria)}</span><span class="tag">${esc(l.meio)}</span></div></div>
-                  <span class="${l.tipo === "Entrada" ? "pos" : l.tipo === "Saída" ? "neg" : "muted"}">${l.tipo === "Entrada" ? "+" : l.tipo === "Saída" ? "−" : "↔"}${brl(l.valor)}</span></div>`,
-                )
-                .join("")}</div>`
-            : `<div class="empty">Nenhum lançamento.</div>`
-        }
-      </div>
-    </div>`;
-}
+// ---- Esferas ---------------------------------------------------------------
+// Cada esfera tem painéis próprios acima do quadro de tarefas. Novos painéis entram aqui.
+const PAINEIS = {
+  Trabalho: [painelEmails],
+};
 
-// ---- Esfera ----------------------------------------------------------------
 let mostrarConcluidas = false;
 
 function renderEsfera(area) {
+  const paineis = PAINEIS[area] ?? [];
   main.innerHTML = `
     <div class="page-head">
       <div><div class="muted small">Esfera</div><h1>${esc(area)}</h1></div>
-      <label class="check"><input type="checkbox" id="concl" ${mostrarConcluidas ? "checked" : ""}/> Mostrar concluídas</label>
     </div>
-    <section class="card" style="margin-bottom:16px">
+    <section class="card" style="margin-bottom:16px"><div id="e-kpis"></div></section>
+    ${paineis.map((_, i) => `<div id="painel-${i}"></div>`).join("")}
+    <section class="card">
+      <div class="card-head"><h2>Tarefas</h2>
+        <label class="check"><input type="checkbox" id="concl" ${mostrarConcluidas ? "checked" : ""}/> Mostrar concluídas</label></div>
       <form class="add" id="add">
         <input name="tarefa" placeholder="Nova tarefa em ${esc(area)}" required maxlength="200" />
         <input name="prazo" type="datetime-local" title="Prazo" />
@@ -244,9 +207,11 @@ function renderEsfera(area) {
         <label class="check" title="Cria um aviso no Google Calendar"><input type="checkbox" name="lembrete" /> Lembrete</label>
         <button class="btn primary">Adicionar</button>
       </form>
-      <div id="add-msg" class="small" style="margin-top:8px"></div>
-    </section>
-    <div id="board"></div>`;
+      <div id="add-msg" class="small" style="margin:8px 0"></div>
+      <div id="board"></div>
+    </section>`;
+
+  paineis.forEach((p, i) => p($(`#painel-${i}`), area));
 
   $("#concl").onchange = (e) => {
     mostrarConcluidas = e.target.checked;
@@ -285,11 +250,24 @@ function renderEsfera(area) {
   loadBoard(area);
 }
 
+function drawKpisEsfera(ts) {
+  const hoje = hojeISO();
+  const abertas = ts.filter((t) => t.status !== "Concluída");
+  const semana = abertas.filter((t) => t.prazo && diaDe(t.prazo) >= hoje && diaDe(t.prazo) <= addDias(hoje, 7)).length;
+  return `<div class="kpis kpis-4">
+    <div class="kpi"><div class="label">Abertas</div><div class="value">${abertas.length}</div></div>
+    <div class="kpi"><div class="label">Em andamento</div><div class="value">${abertas.filter((t) => t.status === "Em andamento").length}</div></div>
+    <div class="kpi"><div class="label">Atrasadas</div><div class="value ${abertas.some(atrasada) ? "late" : ""}">${abertas.filter(atrasada).length}</div></div>
+    <div class="kpi"><div class="label">Prazo nos próximos 7 dias</div><div class="value">${semana}</div></div>
+  </div>`;
+}
+
 async function loadBoard(area) {
   const board = $("#board");
   board.innerHTML = `<div class="loading">Carregando…</div>`;
   try {
     const ts = await api(`/tarefas?area=${encodeURIComponent(area)}${mostrarConcluidas ? "&concluidas=1" : ""}`);
+    $("#e-kpis").innerHTML = drawKpisEsfera(ts);
     const cols = mostrarConcluidas ? me.status : me.status.filter((s) => s !== "Concluída");
     board.innerHTML = `<div class="columns" style="--cols:${cols.length}">${cols
       .map((s) => {
@@ -301,6 +279,7 @@ async function loadBoard(area) {
     board.querySelectorAll("[data-status]").forEach((b) => (b.onclick = () => mudarStatus(b, area)));
   } catch (err) {
     board.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    $("#e-kpis").innerHTML = "";
   }
 }
 
@@ -333,11 +312,81 @@ async function mudarStatus(btn, area) {
   }
 }
 
+// ---- Painel: e-mails do dia (Trabalho) --------------------------------------
+const remetente = (de) => (de.match(/^"?([^"<]+?)"?\s*</)?.[1] ?? de).trim();
+
+function painelEmails(el) {
+  el.innerHTML = `<section class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2>E-mails de hoje</h2>
+      <div class="periodo"><button class="btn sm" id="m-atual">Atualizar</button><button class="btn sm primary" id="m-resumo">Resumir com IA</button></div></div>
+    <div id="m-ia"></div>
+    <div id="m-lista"></div></section>`;
+  const carregar = () => fill($("#m-lista"), () => api("/emails/hoje"), drawEmails);
+  $("#m-atual").onclick = carregar;
+  $("#m-resumo").onclick = async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    $("#m-ia").innerHTML = `<div class="ia-box loading">Lendo os e-mails de hoje…</div>`;
+    try {
+      const r = await api("/emails/resumo", { method: "POST" });
+      $("#m-ia").innerHTML = `<div class="ia-box">${formatarResumo(r.texto)}
+        <div class="small muted">Resumo de ${r.emails} e-mail(s), gerado às ${fmtHora(r.geradoEm)}${r.cache ? " (sem e-mails novos desde então)" : ""}.</div></div>`;
+    } catch (err) {
+      $("#m-ia").innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  carregar();
+}
+
+/** Texto do resumo → HTML seguro: linhas "- " viram itens; as demais, títulos. */
+function formatarResumo(texto) {
+  let html = "";
+  let aberto = false;
+  for (const linha of texto.split("\n").map((l) => l.trim()).filter(Boolean)) {
+    const item = linha.match(/^[-•*]\s+(.*)$/);
+    if (item) {
+      if (!aberto) (html += "<ul>"), (aberto = true);
+      html += `<li>${esc(item[1].replace(/\*\*/g, ""))}</li>`;
+    } else {
+      if (aberto) (html += "</ul>"), (aberto = false);
+      html += `<h4>${esc(linha.replace(/[#*:]/g, "").trim())}</h4>`;
+    }
+  }
+  return html + (aberto ? "</ul>" : "");
+}
+
+function drawEmails(es) {
+  if (!es.length) return `<div class="empty">Nenhum e-mail recebido hoje.</div>`;
+  const grupos = [
+    ["Principal", es.filter((e) => e.categoria === "Principal" || e.categoria === "Fóruns")],
+    ["Atualizações", es.filter((e) => e.categoria === "Atualizações")],
+    ["Promoções e social", es.filter((e) => e.categoria === "Promoções" || e.categoria === "Social")],
+  ].filter(([, l]) => l.length);
+  return grupos
+    .map(
+      ([nome, l]) => `<details class="mail-group" ${nome === "Promoções e social" ? "" : "open"}>
+      <summary><b>${esc(nome)}</b> <span class="muted small">${l.length} · ${l.filter((e) => e.naoLido).length} não lido(s)</span></summary>
+      <div class="list">${l
+        .map(
+          (e) => `<a class="row mail ${e.naoLido ? "unread" : ""}" href="${esc(e.link)}" target="_blank" rel="noopener">
+            <span class="when">${esc(fmtHora(e.recebidoEm))}</span>
+            <div class="grow"><div class="title">${esc(e.assunto)}</div>
+              <div class="meta"><span>${esc(remetente(e.de))}</span>${e.importante ? `<span class="tag alta">Importante</span>` : ""}</div>
+              <div class="small muted snippet">${esc(e.trecho)}</div></div></a>`,
+        )
+        .join("")}</div></details>`,
+    )
+    .join("");
+}
+
 // ---- Início ----------------------------------------------------------------
 function showLogin() {
   $("#app").hidden = true;
   $("#login").hidden = false;
 }
+setOnUnauthorized(showLogin);
 
 $("#logout").onclick = async () => {
   await fetch("/auth/logout", { method: "POST" });
