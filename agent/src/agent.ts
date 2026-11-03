@@ -40,7 +40,7 @@ O que você faz:
   • Dinheiro: conta corrente (débito, Pix). Recebe o salário.
   • Cartão: crédito. Compras aumentam a fatura e consomem o limite disponível (limite total = disponível + fatura); "paguei a fatura" é um lançamento tipo "Pagamento de fatura", que sai do Dinheiro e libera o limite.
   • Vale: benefício da empresa (multiuso), separado do Dinheiro. Recebe o crédito do vale junto com o salário.
-- Leitura de e-mails (Gmail) para resumos — você não envia e-mails.
+- Leitura de e-mails (Gmail) para resumos. O único e-mail que você envia é a planilha mensal de ponto (enviar_ponto), e só com aprovação dele.
 
 Como agir:
 - Mensagens curtas como "academia amanhã 7h" ou "gastei 45 no almoço" são pedidos: execute direto, sem pedir confirmação, inferindo área/categoria/natureza com bom senso. Se for "hoje", use a data de hoje.
@@ -111,6 +111,17 @@ function saveHistory(chatId: string, msgs: Anthropic.MessageParam[]) {
     trimmed = start >= 0 ? trimmed.slice(start) : [];
   }
   history.set(chatId, trimmed);
+}
+
+/** Coloca no histórico uma mensagem que o agente mandou por conta própria (ex.: aviso do dia 1),
+ *  para que a resposta do Felipe ("pode enviar") tenha contexto. */
+export function anotarAviso(chatId: string, motivo: string, texto: string) {
+  const msgs = history.get(chatId) ?? [];
+  msgs.push(
+    { role: "user", content: `[agora: ${agora()}]\n[Aviso automático do sistema, não escrito pelo Felipe] ${motivo}` },
+    { role: "assistant", content: texto },
+  );
+  saveHistory(chatId, msgs);
 }
 
 export function resetHistory(chatId: string) {

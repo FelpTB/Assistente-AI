@@ -2,7 +2,8 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { sendText, sentByAgent, setPresenceTyping } from "./evolution.js";
-import { handleMessage, resetHistory } from "./agent.js";
+import { anotarAviso, handleMessage, resetHistory } from "./agent.js";
+import { mesAnterior, pontoDoMes, pontoJaEnviado } from "./ponto.js";
 import { registerAuthRoutes } from "./auth.js";
 import { registerDashboardRoutes } from "./dashboard.js";
 
@@ -121,11 +122,41 @@ async function processMessage(chatJid: string, text: string) {
   }
 }
 
+// ---- Ponto mensal: no dia 1, prepara a planilha do mês anterior e pede aprovação no grupo ----
+const pontoAvisado = new Set<string>();
+
+async function verificarPontoMensal() {
+  const chat = config.allowedChats[0];
+  if (!chat) return;
+  const agora = new Date().toLocaleString("sv-SE", { timeZone: config.timezone }); // "2026-11-01 09:05:00"
+  if (agora.slice(8, 10) !== "01" || Number(agora.slice(11, 13)) < config.ponto.horaAviso) return;
+  const mes = mesAnterior();
+  if (pontoAvisado.has(mes)) return;
+  pontoAvisado.add(mes);
+  try {
+    if (await pontoJaEnviado(mes)) return;
+    const r = await pontoDoMes(mes);
+    const texto = r.dias.length
+      ? `Planilha de ponto de *${r.nomeMes}* pronta:\n• ${r.diasTrabalhados} dias com registro\n• Total: *${r.total}*` +
+        (r.incompletos.length ? `\n• Batida ímpar em ${r.incompletos.length} dia(s): ${r.incompletos.map((d) => d.slice(8, 10) + "/" + d.slice(5, 7)).join(", ")}` : "") +
+        `\n\nPosso enviar para ${config.ponto.email}?`
+      : `Não encontrei registros de ponto de ${config.ponto.funcionario} em ${r.nomeMes}, então não há planilha para enviar.`;
+    await sendText(chat, `${config.replyPrefix}${texto}`);
+    anotarAviso(chat, `Dia 1: planilha de ponto de ${r.nomeMes} (mes=${mes}) preparada; pedir aprovação para enviar.`, texto);
+  } catch (err: any) {
+    console.error("[ponto]", err?.message ?? err);
+    await sendText(chat, `${config.replyPrefix}Não consegui preparar a planilha de ponto: ${err?.message ?? err}`).catch(console.error);
+  }
+}
+
+setInterval(() => verificarPontoMensal().catch(console.error), 10 * 60000);
+
 app.listen(config.port, () => {
   console.log(`Assistente AI ouvindo na porta ${config.port}`);
   if (config.allowedChats.length === 0)
     console.log('Nenhum chat liberado. Envie "/ativar" no seu grupo solo para descobrir o ID.');
   else console.log(`Chats liberados: ${config.allowedChats.join(", ")}`);
   console.log(`Modelo: ${config.anthropic.model}`);
+  verificarPontoMensal().catch(console.error);
   console.log(`Dashboard: ${config.dashboard.publicUrl} (login: ${config.dashboard.emails.join(", ")})`);
 });

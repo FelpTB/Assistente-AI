@@ -17,6 +17,7 @@ import {
 } from "./tools/gastos.js";
 import { emailsDoDia, emailsRecentes } from "./tools/emails.js";
 import { execucoesN8n, metricasBanco, statusSite } from "./buscaFornecedor.js";
+import { mesAnterior, planilhaPonto, pontoDoMes, tabelasN8n } from "./ponto.js";
 
 const resumosPorEmail = new Map<string, { resumo: string; acao: string | null }>();
 
@@ -267,6 +268,18 @@ export function registerDashboardRoutes(app: Express) {
   api.get("/projetos/busca-fornecedor/site", route(async (req) => statusSite(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/banco", route(async (req) => metricasBanco(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/n8n", route(async (req) => execucoesN8n(req.query.forcar === "1")));
+
+  // ---- Ponto (data table do n8n) ----
+  api.get("/ponto/tabelas", route(async () => tabelasN8n()));
+  api.get("/ponto", route(async (req) => pontoDoMes(String(req.query.mes || mesAnterior()))));
+  api.get("/ponto/planilha", async (req, res) => {
+    try {
+      const r = await planilhaPonto(String(req.query.mes || mesAnterior()));
+      res.attachment(r.arquivo).type("xlsx").send(r.buffer);
+    } catch (err: any) {
+      res.status(err?.status === 400 ? 400 : 502).json({ erro: err?.message ?? String(err) });
+    }
+  });
 
   app.use("/api", api);
 }

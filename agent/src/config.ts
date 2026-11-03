@@ -63,6 +63,15 @@ export const config = {
     n8nApiKey: opt("N8N_API_KEY"),
   },
 
+  // Planilha mensal do ponto (data table do n8n), enviada por e-mail no dia 1 após aprovação no WhatsApp.
+  ponto: {
+    tabela: opt("PONTO_TABELA"), // nome ou ID da data table; vazio = a primeira com "ponto" no nome
+    funcionario: opt("PONTO_FUNCIONARIO", "Felipe"),
+    colunaFuncionario: opt("PONTO_COLUNA_FUNCIONARIO"), // vazio = detecta pelo nome da coluna
+    email: opt("PONTO_EMAIL", "tbfelipe067@gmail.com"),
+    horaAviso: Number(opt("PONTO_HORA_AVISO", "9")), // hora (fuso do assistente) do aviso no dia 1
+  },
+
   dashboard: {
     // Endereço público do serviço; o Railway informa o domínio em RAILWAY_PUBLIC_DOMAIN.
     publicUrl: (

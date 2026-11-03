@@ -3,6 +3,7 @@ import { AREAS, PRIORIDADES, STATUS, criarTarefa, listarTarefas, atualizarTarefa
 import { criarEvento, listarAgenda, removerEvento } from "./agenda.js";
 import { MEIOS, TIPOS, corrigirSaldo, lancarGasto, resumoGastos, listarCategorias, saldos } from "./gastos.js";
 import { buscarEmails } from "./emails.js";
+import { enviarPonto, mesAnterior, pontoDoMes } from "../ponto.js";
 
 export const tools: Anthropic.Tool[] = [
   {
@@ -157,6 +158,26 @@ export const tools: Anthropic.Tool[] = [
   },
 ];
 
+tools.push(
+  {
+    name: "resumo_ponto",
+    description: "Resumo do ponto do Felipe num mês (dias com registro, total de horas, dias com batida ímpar), lido da tabela de ponto do n8n.",
+    input_schema: {
+      type: "object",
+      properties: { mes: { type: "string", description: "AAAA-MM. Padrão: mês anterior" } },
+    },
+  },
+  {
+    name: "enviar_ponto",
+    description:
+      "Gera a planilha .xlsx do ponto do Felipe no mês e envia por e-mail ao endereço configurado. Só chame quando o Felipe pedir ou aprovar o envio.",
+    input_schema: {
+      type: "object",
+      properties: { mes: { type: "string", description: "AAAA-MM. Padrão: mês anterior" } },
+    },
+  },
+);
+
 const handlers: Record<string, (input: any) => Promise<unknown>> = {
   criar_tarefa: criarTarefa,
   listar_tarefas: listarTarefas,
@@ -170,6 +191,11 @@ const handlers: Record<string, (input: any) => Promise<unknown>> = {
   corrigir_saldo: (i) => corrigirSaldo({ ...i, origem: "WhatsApp" }),
   resumo_gastos: resumoGastos,
   buscar_emails: buscarEmails,
+  resumo_ponto: async (i) => {
+    const { colunas, dias, ...r } = await pontoDoMes(i.mes || mesAnterior());
+    return r;
+  },
+  enviar_ponto: (i) => enviarPonto(i.mes || mesAnterior()),
 };
 
 export async function runTool(name: string, input: unknown): Promise<{ content: string; isError: boolean }> {

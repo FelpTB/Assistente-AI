@@ -51,6 +51,11 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 - `company_profile` tem ~585 mil linhas e `created_at` **sem índice** (contar por data leva ~5 s; o limite da API é 8 s): o total vem da estimativa do Postgres e os novos são lidos pelas 10 mil linhas mais recentes por `id`.
 - Site: verificação HTTP de `BF_SITE_URL`. n8n: API pública (`N8N_URL`, `N8N_API_KEY`), todas as execuções.
 
+### Ponto mensal (n8n → xlsx → e-mail)
+- `agent/src/ponto.ts` lê a data table de ponto do n8n (API pública; tenta `/data-tables` e `/datatables`), filtra o funcionário (`PONTO_FUNCIONARIO`, padrão Felipe), agrupa as batidas por dia e calcula as horas (pares entrada/saída).
+- Dia 1, a partir das `PONTO_HORA_AVISO` h: o agente manda o resumo do mês anterior no grupo e pede aprovação; ao aprovar, a tool `enviar_ponto` envia o .xlsx para `PONTO_EMAIL` (tbfelipe067@gmail.com) pelo Gmail. Não reenvia se já houver e-mail enviado com o mesmo assunto.
+- Envio exige o escopo `gmail.send` no refresh token. Conferência pelo dashboard: `/api/ponto/tabelas`, `/api/ponto?mes=AAAA-MM`, `/api/ponto/planilha?mes=AAAA-MM`.
+
 ## Arquitetura proposta
 ```
 WhatsApp ──► Evolution API ──webhook──► Backend do agente (Node/TS + Claude API com tools)
