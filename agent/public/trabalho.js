@@ -329,7 +329,14 @@ export function renderPonto(el) {
 function drawPonto(r) {
   const c = r.colunas;
   const colunas = `<p class="small muted">Tabela <b>${esc(r.tabela)}</b> · funcionário em <b>${esc(c.funcionario)}</b>${c.data ? ` · data em <b>${esc(c.data)}</b>` : ""} · horários em <b>${esc(c.horarios.join(", "))}</b></p>`;
-  if (!r.dias.length) return `${colunas}<div class="empty">Nenhum registro em ${esc(r.nomeMes)}.</div>`;
+  if (!r.dias.length) {
+    const g = r.diagnostico;
+    const fmt = (d) => (d ? d.split("-").reverse().join("/") : "—");
+    return `${colunas}<div class="empty">Nenhum registro em ${esc(r.nomeMes)}.</div>
+      <div class="notice">A tabela tem <b>${g.linhas}</b> linha(s) e <b>${g.nomesNaTabela}</b> nome(s) diferente(s) na coluna do funcionário;
+        <b>${g.doFuncionario}</b> linha(s) batem com o funcionário configurado${g.doFuncionario ? `, com datas de ${fmt(g.primeiroDia)} a ${fmt(g.ultimoDia)}` : ""}.</div>
+      ${g.exemplo ? `<p class="small muted">Linha de exemplo, como veio do n8n:</p><pre class="small" style="white-space:pre-wrap;overflow-x:auto">${esc(JSON.stringify(g.exemplo, null, 2))}</pre>` : ""}`;
+  }
   const max = Math.max(4, ...r.dias.map((d) => d.batidas.length + (d.batidas.length % 2)));
   const cab = Array.from({ length: max }, (_, i) => `<th>${i % 2 ? "Saída" : "Entrada"} ${Math.floor(i / 2) + 1}</th>`).join("");
   return `

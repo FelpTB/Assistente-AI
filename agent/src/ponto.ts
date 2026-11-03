@@ -113,10 +113,20 @@ function local(v: unknown, diaBase?: string): { dia: string; min: number | null 
   const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
   if (br) return { dia: `${br[3]}-${br[2]}-${br[1]}`, min: br[4] ? Number(br[4]) * 60 + Number(br[5]) : null };
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return { dia: s, min: null };
+  // Sem fuso ("2026-10-01 08:00"): já é hora local.
+  const semFuso = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::[\d.]+)?$/);
+  if (semFuso) return { dia: semFuso[1], min: Number(semFuso[2]) * 60 + Number(semFuso[3]) };
   const t = Date.parse(s);
   if (Number.isNaN(t)) return null;
   const d = new Date(t - 3 * 3600000);
   return { dia: d.toISOString().slice(0, 10), min: d.getUTCHours() * 60 + d.getUTCMinutes() };
+}
+
+/** Dia da coluna de data. Colunas "date" do n8n vêm como meia-noite UTC: vale a data escrita, sem converter o fuso. */
+function diaDe(v: unknown): string | undefined {
+  const s = String(v ?? "").trim();
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})(?:T00:00(?::00(?:\.0+)?)?Z?)?$/);
+  return iso ? iso[1] : local(s)?.dia;
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -133,10 +143,20 @@ export async function pontoDoMes(mes: string) {
   if (!col.horarios.length && !col.data) throw new Error(`Não achei colunas de data/horário (colunas: ${col.nomes.join(", ")}).`);
 
   const quem = norm(p.funcionario);
+  const fCol = col.funcionario;
+  const doFuncionario = linhas.filter((l) => norm(l[fCol]).includes(quem));
+  // Datas que aparecem nas linhas do funcionário (para explicar uma planilha vazia).
+  const diasVistos = doFuncionario
+    .flatMap((l) => {
+      const base = col.data ? diaDe(l[col.data]) : undefined;
+      return col.horarios.map((c) => local(l[c], base)?.dia).concat(base);
+    })
+    .filter((d): d is string => !!d)
+    .sort();
   const dias = new Map<string, { batidas: Set<number>; obs: string[] }>();
   for (const l of linhas) {
-    if (!norm(l[col.funcionario]).includes(quem)) continue;
-    const base = col.data ? local(l[col.data])?.dia : undefined;
+    if (!norm(l[fCol]).includes(quem)) continue;
+    const base = col.data ? diaDe(l[col.data]) : undefined;
     for (const c of col.horarios) {
       const v = local(l[c], base);
       if (!v || !v.dia.startsWith(mes)) continue;
@@ -178,6 +198,14 @@ export async function pontoDoMes(mes: string) {
     totalMinutos: total,
     total: hhmm(total),
     incompletos: resultado.filter((d) => d.incompleto).map((d) => d.dia),
+    diagnostico: {
+      linhas: linhas.length,
+      doFuncionario: doFuncionario.length,
+      nomesNaTabela: new Set(linhas.map((l) => norm(l[fCol]))).size,
+      primeiroDia: diasVistos[0] ?? null,
+      ultimoDia: diasVistos.at(-1) ?? null,
+      exemplo: doFuncionario.at(-1) ?? null, // uma linha do próprio Felipe, como veio do n8n
+    },
   };
 }
 
