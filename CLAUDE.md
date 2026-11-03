@@ -53,7 +53,7 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 
 ### Ponto mensal (n8n → xlsx → e-mail)
 - `agent/src/ponto.ts` lê a data table **"Ponto Felipe"** do n8n (API pública; tenta `/data-tables` e `/datatables`). Uma linha por batida: `Dia` (DD-MM, sem ano; o ano vem de `createdAt`) · `Hora` (local) · `Tipo_ponto` (Entrada, Almoco (Início), Almoco (Fim), Saída). Horas = saída − entrada − almoço; dias com batida faltando ou repetida ficam marcados.
-- Dia 1, a partir das `PONTO_HORA_AVISO` h: o agente manda o resumo do mês anterior no grupo e pede aprovação; ao aprovar, a tool `enviar_ponto` envia o .xlsx para `PONTO_EMAIL` (tbfelipe067@gmail.com) pelo Gmail. Não reenvia se já houver e-mail enviado com o mesmo assunto.
+- Dia 1, a partir das `PONTO_HORA_AVISO` h: o agente manda o resumo do mês anterior no grupo e pede aprovação; ao aprovar, a tool `enviar_ponto` envia o .xlsx para `PONTO_EMAIL` (waltagan@abcadvise.com.br) pelo Gmail. Não reenvia se já houver e-mail enviado com o mesmo assunto.
 - Rodar a rotina manualmente: `/ponto` (ou `/ponto AAAA-MM`) no grupo → resumo + pedido de aprovação (avisa se já foi enviado); ou botão **Enviar por e-mail** na aba Ponto do dashboard (`POST /api/ponto/enviar`, com confirmação; `GET /api/ponto/enviado?mes=`).
 - Envio exige o escopo `gmail.send` no refresh token. Conferência pelo dashboard: `/api/ponto/tabelas`, `/api/ponto?mes=AAAA-MM`, `/api/ponto/planilha?mes=AAAA-MM`.
 

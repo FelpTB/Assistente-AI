@@ -67,7 +67,7 @@ export const config = {
   ponto: {
     tabela: opt("PONTO_TABELA"), // nome ou ID da data table; vazio = a que tem "ponto" e o nome do funcionário
     funcionario: opt("PONTO_FUNCIONARIO", "Felipe"),
-    email: opt("PONTO_EMAIL", "tbfelipe067@gmail.com"),
+    email: opt("PONTO_EMAIL", "waltagan@abcadvise.com.br"),
     horaAviso: Number(opt("PONTO_HORA_AVISO", "9")), // hora (fuso do assistente) do aviso no dia 1
   },
 
