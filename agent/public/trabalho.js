@@ -327,34 +327,31 @@ export function renderPonto(el) {
 }
 
 function drawPonto(r) {
-  const c = r.colunas;
-  const colunas = `<p class="small muted">Tabela <b>${esc(r.tabela)}</b> · funcionário em <b>${esc(c.funcionario)}</b>${c.data ? ` · data em <b>${esc(c.data)}</b>` : ""} · horários em <b>${esc(c.horarios.join(", "))}</b></p>`;
+  const fonte = `<p class="small muted">Tabela <b>${esc(r.tabela)}</b> no n8n</p>`;
   if (!r.dias.length) {
     const g = r.diagnostico;
     const fmt = (d) => (d ? d.split("-").reverse().join("/") : "—");
-    return `${colunas}<div class="empty">Nenhum registro em ${esc(r.nomeMes)}.</div>
-      <div class="notice">A tabela tem <b>${g.linhas}</b> linha(s) e <b>${g.nomesNaTabela}</b> nome(s) diferente(s) na coluna do funcionário;
-        <b>${g.doFuncionario}</b> linha(s) batem com o funcionário configurado${g.doFuncionario ? `, com datas de ${fmt(g.primeiroDia)} a ${fmt(g.ultimoDia)}` : ""}.</div>
-      ${g.exemplo ? `<p class="small muted">Linha de exemplo, como veio do n8n:</p><pre class="small" style="white-space:pre-wrap;overflow-x:auto">${esc(JSON.stringify(g.exemplo, null, 2))}</pre>` : ""}`;
+    return `${fonte}<div class="empty">Nenhum registro em ${esc(r.nomeMes)}.</div>
+      <div class="notice">A tabela tem <b>${g.linhas}</b> batida(s)${g.linhas ? `, de ${fmt(g.primeiroDia)} a ${fmt(g.ultimoDia)}` : ""}.</div>
+      ${g.exemplo ? `<p class="small muted">Última linha, como veio do n8n:</p><pre class="small" style="white-space:pre-wrap;overflow-x:auto">${esc(JSON.stringify(g.exemplo, null, 2))}</pre>` : ""}`;
   }
-  const max = Math.max(4, ...r.dias.map((d) => d.batidas.length + (d.batidas.length % 2)));
-  const cab = Array.from({ length: max }, (_, i) => `<th>${i % 2 ? "Saída" : "Entrada"} ${Math.floor(i / 2) + 1}</th>`).join("");
+  const h = (m) => (m == null ? `<span class="muted">—</span>` : hhmm(m));
   return `
     <div class="kpis">
       <div class="kpi"><div class="label">Total de horas</div><div class="value">${r.total}</div></div>
-      <div class="kpi"><div class="label">Dias com registro</div><div class="value">${r.diasTrabalhados}</div></div>
-      <div class="kpi"><div class="label">Batida ímpar</div><div class="value">${r.incompletos.length}</div><div class="small muted">dias para conferir</div></div>
+      <div class="kpi"><div class="label">Dias trabalhados</div><div class="value">${r.diasTrabalhados}</div></div>
+      <div class="kpi"><div class="label">Registro incompleto</div><div class="value">${r.incompletos.length}</div><div class="small muted">dias para conferir</div></div>
     </div>
-    ${colunas}
+    ${fonte}
     <div style="overflow-x:auto"><table class="tbl">
-      <thead><tr><th>Data</th><th>Dia</th>${cab}<th>Horas</th><th>Obs.</th></tr></thead>
+      <thead><tr><th>Data</th><th>Dia</th><th>Entrada</th><th>Saída almoço</th><th>Volta almoço</th><th>Saída</th><th>Almoço</th><th>Horas</th><th>Obs.</th></tr></thead>
       <tbody>${r.dias
         .map(
           (d) => `<tr>
           <td>${d.dia.split("-").reverse().join("/")}</td><td>${esc(d.semana)}</td>
-          ${Array.from({ length: max }, (_, i) => `<td>${d.batidas[i] != null ? hhmm(d.batidas[i]) : ""}</td>`).join("")}
-          <td><b>${hhmm(d.minutos)}</b></td>
-          <td>${d.incompleto ? `<span class="tag alta">Batida ímpar</span> ` : ""}${esc(d.obs)}</td></tr>`,
+          <td>${h(d.entrada)}</td><td>${h(d.almocoInicio)}</td><td>${h(d.almocoFim)}</td><td>${h(d.saida)}</td>
+          <td>${hhmm(d.almoco)}</td><td><b>${hhmm(d.minutos)}</b></td>
+          <td>${d.pendencias.map((x) => `<span class="tag alta">${esc(x)}</span>`).join(" ")}</td></tr>`,
         )
         .join("")}</tbody>
     </table></div>`;

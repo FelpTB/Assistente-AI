@@ -70,9 +70,11 @@ export async function tabelasN8n() {
 async function tabelaPonto() {
   const tabelas = await paginado("");
   const alvo = norm(p.tabela);
+  const quem = norm(p.funcionario);
   const t = alvo
     ? tabelas.find((x) => String(x.id) === p.tabela || norm(x.name) === alvo)
-    : tabelas.find((x) => /ponto/.test(norm(x.name)));
+    : (tabelas.find((x) => /ponto/.test(norm(x.name)) && norm(x.name).includes(quem)) ??
+      tabelas.find((x) => /ponto/.test(norm(x.name))));
   if (!t) {
     const nomes = tabelas.map((x) => x.name).join(", ") || "nenhuma";
     throw new Error(`Tabela de ponto não encontrada no n8n (tabelas: ${nomes}). Defina PONTO_TABELA com o nome dela.`);
@@ -81,131 +83,107 @@ async function tabelaPonto() {
 }
 
 // ---- Interpretação das linhas -------------------------------------------------
+// Formato da tabela (uma por funcionário, ex. "Ponto Felipe"): uma linha por batida.
+//   Dia "01-10" (DD-MM, sem ano) · Hora "11:00" (horário local) · Tipo_ponto · createdAt (ISO, UTC)
+// Tipos: Entrada, Almoco (Início), Almoco (Fim), Saída. O ano vem do createdAt.
 
 type Linha = Record<string, unknown>;
-const INTERNAS = /^(id|createdat|updatedat|created_at|updated_at)$/;
+type Batida = "entrada" | "almocoInicio" | "almocoFim" | "saida";
 
-/** Descobre as colunas pelo nome: funcionário, data, horários e observação. */
-function mapearColunas(linhas: Linha[]) {
-  const nomes = [...new Set(linhas.flatMap((l) => Object.keys(l)))];
-  const acha = (re: RegExp) => nomes.find((n) => re.test(norm(n)));
-  const funcionario = p.colunaFuncionario || acha(/funcionari|colaborador|employee|^nome|usuario|^user/);
-  const data = acha(/^data$|^dia$|^date$|^data[ _]/);
-  const obs = acha(/obs|justific|nota|coment/);
-  // Colunas de horário: nomes de batida ou valores com hora.
-  const horarios = nomes.filter(
-    (n) =>
-      !INTERNAS.test(norm(n)) &&
-      n !== funcionario &&
-      n !== obs &&
-      (/entrada|saida|inicio|fim|almoco|intervalo|retorno|batida|hora|horario|registro|timestamp|marcac/.test(norm(n)) ||
-        linhas.some((l) => typeof l[n] === "string" && /^\d{1,2}:\d{2}/.test(String(l[n])))),
-  );
-  return { nomes, funcionario, data, obs, horarios };
+function tipoBatida(v: unknown): Batida | null {
+  const t = norm(v);
+  if (/almoc|interval/.test(t)) return /fim|volta|retorno/.test(t) ? "almocoFim" : "almocoInicio";
+  if (/entrada/.test(t)) return "entrada";
+  if (/saida/.test(t)) return "saida";
+  return null;
 }
 
-/** Converte um valor em data/hora local (America/Sao_Paulo, UTC-3 fixo). */
-function local(v: unknown, diaBase?: string): { dia: string; min: number | null } | null {
-  if (v == null || v === "") return null;
-  const s = String(v).trim();
-  const hora = s.match(/^(\d{1,2}):(\d{2})/);
-  if (hora && diaBase) return { dia: diaBase, min: Number(hora[1]) * 60 + Number(hora[2]) };
-  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
-  if (br) return { dia: `${br[3]}-${br[2]}-${br[1]}`, min: br[4] ? Number(br[4]) * 60 + Number(br[5]) : null };
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return { dia: s, min: null };
-  // Sem fuso ("2026-10-01 08:00"): já é hora local.
-  const semFuso = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::[\d.]+)?$/);
-  if (semFuso) return { dia: semFuso[1], min: Number(semFuso[2]) * 60 + Number(semFuso[3]) };
-  const t = Date.parse(s);
-  if (Number.isNaN(t)) return null;
-  const d = new Date(t - 3 * 3600000);
-  return { dia: d.toISOString().slice(0, 10), min: d.getUTCHours() * 60 + d.getUTCMinutes() };
+/** Dia "AAAA-MM-DD" da batida: Dia (DD-MM) com o ano do createdAt (no fuso local). */
+function diaDaBatida(l: Linha): string | null {
+  const m = String(l.Dia ?? "").trim().match(/^(\d{1,2})[-/](\d{1,2})(?:[-/](\d{4}))?$/);
+  const criado = Date.parse(String(l.createdAt ?? ""));
+  const criadoLocal = Number.isNaN(criado) ? null : new Date(criado - 3 * 3600000);
+  if (!m) return criadoLocal ? criadoLocal.toISOString().slice(0, 10) : null;
+  const ano = m[3] ?? (criadoLocal ?? new Date()).getUTCFullYear();
+  return `${ano}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
 }
 
-/** Dia da coluna de data. Colunas "date" do n8n vêm como meia-noite UTC: vale a data escrita, sem converter o fuso. */
-function diaDe(v: unknown): string | undefined {
-  const s = String(v ?? "").trim();
-  const iso = s.match(/^(\d{4}-\d{2}-\d{2})(?:T00:00(?::00(?:\.0+)?)?Z?)?$/);
-  return iso ? iso[1] : local(s)?.dia;
+function minutos(v: unknown): number | null {
+  const m = String(v ?? "").trim().match(/^(\d{1,2}):(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-export type DiaPonto = { dia: string; semana: string; batidas: number[]; minutos: number; incompleto: boolean; obs: string };
+export type DiaPonto = {
+  dia: string;
+  semana: string;
+  entrada: number | null;
+  almocoInicio: number | null;
+  almocoFim: number | null;
+  saida: number | null;
+  almoco: number; // minutos de almoço
+  minutos: number; // horas trabalhadas, em minutos
+  pendencias: string[];
+};
 
-/** Linhas do funcionário no mês (AAAA-MM), agrupadas por dia com as horas trabalhadas. */
+/** Batidas do mês (AAAA-MM) agrupadas por dia, com almoço e horas trabalhadas. */
 export async function pontoDoMes(mes: string) {
   if (!/^\d{4}-\d{2}$/.test(mes)) throw Object.assign(new Error("Mês no formato AAAA-MM"), { status: 400 });
   const tabela = await tabelaPonto();
   const linhas: Linha[] = await paginado(`/${tabela.id}/rows`);
-  const col = mapearColunas(linhas);
-  if (!col.funcionario) throw new Error(`Não achei a coluna do funcionário (colunas: ${col.nomes.join(", ")}). Defina PONTO_COLUNA_FUNCIONARIO.`);
-  if (!col.horarios.length && !col.data) throw new Error(`Não achei colunas de data/horário (colunas: ${col.nomes.join(", ")}).`);
 
-  const quem = norm(p.funcionario);
-  const fCol = col.funcionario;
-  const doFuncionario = linhas.filter((l) => norm(l[fCol]).includes(quem));
-  // Datas que aparecem nas linhas do funcionário (para explicar uma planilha vazia).
-  const diasVistos = doFuncionario
-    .flatMap((l) => {
-      const base = col.data ? diaDe(l[col.data]) : undefined;
-      return col.horarios.map((c) => local(l[c], base)?.dia).concat(base);
-    })
-    .filter((d): d is string => !!d)
-    .sort();
-  const dias = new Map<string, { batidas: Set<number>; obs: string[] }>();
+  const dias = new Map<string, Partial<Record<Batida, number>> & { repetidas: number }>();
   for (const l of linhas) {
-    if (!norm(l[fCol]).includes(quem)) continue;
-    const base = col.data ? diaDe(l[col.data]) : undefined;
-    for (const c of col.horarios) {
-      const v = local(l[c], base);
-      if (!v || !v.dia.startsWith(mes)) continue;
-      const d = dias.get(v.dia) ?? { batidas: new Set(), obs: [] };
-      if (v.min != null) d.batidas.add(v.min);
-      dias.set(v.dia, d);
-    }
-    if (base?.startsWith(mes)) {
-      const d = dias.get(base) ?? { batidas: new Set(), obs: [] };
-      const o = col.obs ? String(l[col.obs] ?? "").trim() : "";
-      if (o && !d.obs.includes(o)) d.obs.push(o);
-      dias.set(base, d);
-    }
+    const dia = diaDaBatida(l);
+    const tipo = tipoBatida(l.Tipo_ponto);
+    const hora = minutos(l.Hora);
+    if (!dia?.startsWith(mes) || !tipo || hora == null) continue;
+    const d = dias.get(dia) ?? { repetidas: 0 };
+    // Batida repetida: vale a primeira entrada/início de almoço e a última saída/volta do almoço.
+    const atual = d[tipo];
+    if (atual != null) {
+      d.repetidas++;
+      d[tipo] = tipo === "saida" || tipo === "almocoFim" ? Math.max(atual, hora) : Math.min(atual, hora);
+    } else d[tipo] = hora;
+    dias.set(dia, d);
   }
 
   const resultado: DiaPonto[] = [...dias.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([dia, d]) => {
-      const batidas = [...d.batidas].sort((a, b) => a - b);
-      let minutos = 0;
-      for (let i = 0; i + 1 < batidas.length; i += 2) minutos += batidas[i + 1] - batidas[i];
+      const pendencias: string[] = [];
+      if (d.entrada == null) pendencias.push("sem entrada");
+      if (d.saida == null) pendencias.push("sem saída");
+      if ((d.almocoInicio == null) !== (d.almocoFim == null))
+        pendencias.push(d.almocoFim == null ? "sem volta do almoço" : "sem saída para o almoço");
+      if (d.repetidas) pendencias.push(`${d.repetidas} batida(s) repetida(s)`);
+      const almoco = d.almocoInicio != null && d.almocoFim != null ? Math.max(0, d.almocoFim - d.almocoInicio) : 0;
       return {
         dia,
         semana: SEMANA[new Date(`${dia}T12:00:00Z`).getUTCDay()],
-        batidas,
-        minutos,
-        incompleto: batidas.length % 2 === 1,
-        obs: d.obs.join("; "),
+        entrada: d.entrada ?? null,
+        almocoInicio: d.almocoInicio ?? null,
+        almocoFim: d.almocoFim ?? null,
+        saida: d.saida ?? null,
+        almoco,
+        minutos: d.entrada != null && d.saida != null ? Math.max(0, d.saida - d.entrada - almoco) : 0,
+        pendencias,
       };
     });
   const total = resultado.reduce((s, d) => s + d.minutos, 0);
+  const datas = linhas.map(diaDaBatida).filter((d): d is string => !!d).sort();
   return {
     mes,
     nomeMes: `${MESES[Number(mes.slice(5)) - 1]} de ${mes.slice(0, 4)}`,
     tabela: tabela.name as string,
-    colunas: col,
     dias: resultado,
     diasTrabalhados: resultado.filter((d) => d.minutos > 0).length,
     totalMinutos: total,
     total: hhmm(total),
-    incompletos: resultado.filter((d) => d.incompleto).map((d) => d.dia),
-    diagnostico: {
-      linhas: linhas.length,
-      doFuncionario: doFuncionario.length,
-      nomesNaTabela: new Set(linhas.map((l) => norm(l[fCol]))).size,
-      primeiroDia: diasVistos[0] ?? null,
-      ultimoDia: diasVistos.at(-1) ?? null,
-      exemplo: doFuncionario.at(-1) ?? null, // uma linha do próprio Felipe, como veio do n8n
-    },
+    incompletos: resultado.filter((d) => d.pendencias.length).map((d) => d.dia),
+    // Explica uma planilha vazia: quantas batidas a tabela tem e de quando a quando.
+    diagnostico: { linhas: linhas.length, primeiroDia: datas[0] ?? null, ultimoDia: datas.at(-1) ?? null, exemplo: linhas.at(-1) ?? null },
   };
 }
 
@@ -213,17 +191,14 @@ export async function pontoDoMes(mes: string) {
 
 export async function planilhaPonto(mes: string) {
   const r = await pontoDoMes(mes);
-  const maxBatidas = Math.max(4, ...r.dias.map((d) => d.batidas.length + (d.batidas.length % 2)));
-  const pares = maxBatidas / 2;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Assistente AI";
   const ws = wb.addWorksheet(`Ponto ${mes}`, { views: [{ state: "frozen", ySplit: 3 }] });
 
-  const colunas = ["Data", "Dia"];
-  for (let i = 1; i <= pares; i++) colunas.push(`Entrada ${i}`, `Saída ${i}`);
-  colunas.push("Horas", "Observação");
-
+  const colunas = ["Data", "Dia", "Entrada", "Saída almoço", "Volta almoço", "Saída", "Almoço", "Horas", "Observação"];
+  const ALMOCO = 7;
+  const HORAS = 8;
   ws.mergeCells(1, 1, 1, colunas.length);
   ws.getCell(1, 1).value = `Ponto de ${p.funcionario} · ${r.nomeMes}`;
   ws.getCell(1, 1).font = { bold: true, size: 14 };
@@ -235,28 +210,38 @@ export async function planilhaPonto(mes: string) {
     c.alignment = { horizontal: "center" };
   });
 
+  const hora = (m: number | null) => (m == null ? null : hhmm(m));
   for (const d of r.dias) {
     const [a, m, dd] = d.dia.split("-").map(Number);
-    const linha: (string | number | Date | null)[] = [new Date(Date.UTC(a, m - 1, dd)), d.semana];
-    for (let i = 0; i < maxBatidas; i++) linha.push(d.batidas[i] != null ? hhmm(d.batidas[i]) : null);
-    linha.push(d.minutos / 1440, [d.incompleto ? "Batida ímpar: confira" : "", d.obs].filter(Boolean).join(" · "));
-    const row = ws.addRow(linha);
+    const row = ws.addRow([
+      new Date(Date.UTC(a, m - 1, dd)),
+      d.semana,
+      hora(d.entrada),
+      hora(d.almocoInicio),
+      hora(d.almocoFim),
+      hora(d.saida),
+      d.almoco / 1440,
+      d.minutos / 1440,
+      d.pendencias.join("; "),
+    ]);
     row.getCell(1).numFmt = "dd/mm/yyyy";
-    row.getCell(colunas.length - 1).numFmt = "[h]:mm";
-    if (d.incompleto) row.getCell(colunas.length).font = { color: { argb: "FFC00000" } };
-    if (d.semana === "sábado" || d.semana === "domingo") row.font = { color: { argb: "FF7F7F7F" } };
+    row.getCell(ALMOCO).numFmt = "[h]:mm";
+    row.getCell(HORAS).numFmt = "[h]:mm";
+    row.getCell(HORAS).font = { bold: true };
+    for (let c = 2; c <= HORAS; c++) row.getCell(c).alignment = { horizontal: "center" };
+    if (d.pendencias.length) row.getCell(colunas.length).font = { color: { argb: "FFC00000" } };
   }
 
   const tot = ws.addRow([]);
   tot.getCell(1).value = "Total";
   tot.getCell(2).value = `${r.diasTrabalhados} dias`;
-  tot.getCell(colunas.length - 1).value = r.totalMinutos / 1440;
-  tot.getCell(colunas.length - 1).numFmt = "[h]:mm";
+  tot.getCell(HORAS).value = r.totalMinutos / 1440;
+  tot.getCell(HORAS).numFmt = "[h]:mm";
+  tot.getCell(HORAS).alignment = { horizontal: "center" };
   tot.font = { bold: true };
   tot.eachCell((c) => (c.border = { top: { style: "thin" } }));
 
-  ws.columns.forEach((c, i) => (c.width = i === 0 ? 12 : i === colunas.length - 1 ? 36 : 10));
-  ws.getColumn(colunas.length).width = 36;
+  ws.columns.forEach((c, i) => (c.width = i === 0 ? 12 : i === colunas.length - 1 ? 32 : 13));
 
   const buffer = Buffer.from(await wb.xlsx.writeBuffer());
   return { ...r, arquivo: `Ponto ${p.funcionario} ${mes}.xlsx`, buffer };
@@ -278,7 +263,7 @@ export async function enviarPonto(mes: string) {
   const texto =
     `Segue a planilha de ponto de ${p.funcionario} de ${r.nomeMes}.\n\n` +
     `Dias com registro: ${r.diasTrabalhados}\nTotal de horas: ${r.total}\n` +
-    (r.incompletos.length ? `Dias com batida ímpar (conferir): ${r.incompletos.map((d) => d.split("-").reverse().join("/")).join(", ")}\n` : "");
+    (r.incompletos.length ? `Dias com registro incompleto (conferir): ${r.incompletos.map((d) => d.split("-").reverse().join("/")).join(", ")}\n` : "");
   const mime = [
     `To: ${p.email}`,
     `Subject: ${mimeHeader(assunto(r.nomeMes))}`,

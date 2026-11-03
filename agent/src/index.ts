@@ -138,7 +138,7 @@ async function verificarPontoMensal() {
     const r = await pontoDoMes(mes);
     const texto = r.dias.length
       ? `Planilha de ponto de *${r.nomeMes}* pronta:\n• ${r.diasTrabalhados} dias com registro\n• Total: *${r.total}*` +
-        (r.incompletos.length ? `\n• Batida ímpar em ${r.incompletos.length} dia(s): ${r.incompletos.map((d) => d.slice(8, 10) + "/" + d.slice(5, 7)).join(", ")}` : "") +
+        (r.incompletos.length ? `\n• Registro incompleto em ${r.incompletos.length} dia(s): ${r.incompletos.map((d) => d.slice(8, 10) + "/" + d.slice(5, 7)).join(", ")}` : "") +
         `\n\nPosso enviar para ${config.ponto.email}?`
       : `Não encontrei registros de ponto de ${config.ponto.funcionario} em ${r.nomeMes}, então não há planilha para enviar.`;
     await sendText(chat, `${config.replyPrefix}${texto}`);

@@ -161,7 +161,7 @@ export const tools: Anthropic.Tool[] = [
 tools.push(
   {
     name: "resumo_ponto",
-    description: "Resumo do ponto do Felipe num mês (dias com registro, total de horas, dias com batida ímpar), lido da tabela de ponto do n8n.",
+    description: "Resumo do ponto do Felipe num mês (dias com registro, total de horas, dias com registro incompleto), lido da tabela de ponto do n8n.",
     input_schema: {
       type: "object",
       properties: { mes: { type: "string", description: "AAAA-MM. Padrão: mês anterior" } },
@@ -192,7 +192,7 @@ const handlers: Record<string, (input: any) => Promise<unknown>> = {
   resumo_gastos: resumoGastos,
   buscar_emails: buscarEmails,
   resumo_ponto: async (i) => {
-    const { colunas, dias, ...r } = await pontoDoMes(i.mes || mesAnterior());
+    const { dias, diagnostico, ...r } = await pontoDoMes(i.mes || mesAnterior());
     return r;
   },
   enviar_ponto: (i) => enviarPonto(i.mes || mesAnterior()),
