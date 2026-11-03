@@ -289,3 +289,74 @@ export function redesenharTrabalho() {
   desenharGraficoConsultas();
   desenharGraficoCadastros();
 }
+
+// ---- Ponto (data table do n8n) ----------------------------------------------
+
+const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+function mesAnteriorISO() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function renderPonto(el) {
+  el.innerHTML = `
+    <section class="card">
+      <div class="card-head"><h2>Ponto do mês</h2>
+        <div class="periodo">
+          <input type="month" id="p-mes" value="${mesAnteriorISO()}">
+          <a class="btn sm primary" id="p-baixar" href="#">Baixar planilha (.xlsx)</a>
+        </div></div>
+      <p class="small muted">Lido da tabela de ponto do n8n. No dia 1, o agente prepara o mês anterior e pede aprovação no WhatsApp antes de enviar por e-mail.</p>
+      <div id="p-dados"></div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <div class="card-head"><h2>Tabelas no n8n</h2><button class="btn sm" id="p-tabelas">Mostrar</button></div>
+      <div id="p-lista"></div>
+    </section>`;
+  const carregar = () => {
+    const mes = $("#p-mes").value;
+    $("#p-baixar").href = `/api/ponto/planilha?mes=${mes}`;
+    fill($("#p-dados"), () => api(`/ponto?mes=${mes}`), drawPonto);
+  };
+  $("#p-mes").onchange = carregar;
+  $("#p-tabelas").onclick = () => fill($("#p-lista"), () => api("/ponto/tabelas"), drawTabelas);
+  carregar();
+}
+
+function drawPonto(r) {
+  const c = r.colunas;
+  const colunas = `<p class="small muted">Tabela <b>${esc(r.tabela)}</b> · funcionário em <b>${esc(c.funcionario)}</b>${c.data ? ` · data em <b>${esc(c.data)}</b>` : ""} · horários em <b>${esc(c.horarios.join(", "))}</b></p>`;
+  if (!r.dias.length) return `${colunas}<div class="empty">Nenhum registro em ${esc(r.nomeMes)}.</div>`;
+  const max = Math.max(4, ...r.dias.map((d) => d.batidas.length + (d.batidas.length % 2)));
+  const cab = Array.from({ length: max }, (_, i) => `<th>${i % 2 ? "Saída" : "Entrada"} ${Math.floor(i / 2) + 1}</th>`).join("");
+  return `
+    <div class="kpis">
+      <div class="kpi"><div class="label">Total de horas</div><div class="value">${r.total}</div></div>
+      <div class="kpi"><div class="label">Dias com registro</div><div class="value">${r.diasTrabalhados}</div></div>
+      <div class="kpi"><div class="label">Batida ímpar</div><div class="value">${r.incompletos.length}</div><div class="small muted">dias para conferir</div></div>
+    </div>
+    ${colunas}
+    <div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th>Data</th><th>Dia</th>${cab}<th>Horas</th><th>Obs.</th></tr></thead>
+      <tbody>${r.dias
+        .map(
+          (d) => `<tr>
+          <td>${d.dia.split("-").reverse().join("/")}</td><td>${esc(d.semana)}</td>
+          ${Array.from({ length: max }, (_, i) => `<td>${d.batidas[i] != null ? hhmm(d.batidas[i]) : ""}</td>`).join("")}
+          <td><b>${hhmm(d.minutos)}</b></td>
+          <td>${d.incompleto ? `<span class="tag alta">Batida ímpar</span> ` : ""}${esc(d.obs)}</td></tr>`,
+        )
+        .join("")}</tbody>
+    </table></div>`;
+}
+
+function drawTabelas(ts) {
+  if (!ts.length) return `<div class="empty">Nenhuma data table no n8n.</div>`;
+  return `<div class="list">${ts
+    .map((t) => `<div class="row"><div class="grow"><b>${esc(t.nome)}</b> <span class="muted small">${esc(t.id)}</span>
+      <div class="small muted">${t.colunas.length ? t.colunas.map((c) => `${esc(c.nome)} (${esc(c.tipo)})`).join(" · ") : "colunas não informadas pela API"}</div></div></div>`)
+    .join("")}</div>`;
+}

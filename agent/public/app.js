@@ -1,7 +1,7 @@
 // Dashboard do Assistente AI — sem build: HTML + JS puro (módulos ES), dados via /api.
 import { $, api, addDias, brl, diaDe, esc, fill, fmtData, fmtHora, hojeISO, setOnUnauthorized } from "./util.js";
 import { renderFinancas, redesenharFinancas } from "./financas.js";
-import { redesenharTrabalho, renderBuscaFornecedor, renderEmails } from "./trabalho.js";
+import { redesenharTrabalho, renderBuscaFornecedor, renderEmails, renderPonto } from "./trabalho.js";
 
 /** Redesenha os gráficos visíveis (troca de tema ou de largura). */
 const redesenhar = () => {
@@ -198,6 +198,7 @@ const ABAS = {
     { id: "emails", nome: "Resumo de e-mails", render: renderEmails },
     { id: "tarefas", nome: "Tarefas" },
     { id: "busca-fornecedor", nome: "Busca Fornecedor", render: renderBuscaFornecedor },
+    { id: "ponto", nome: "Ponto", render: renderPonto },
   ],
 };
 

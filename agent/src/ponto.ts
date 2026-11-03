@@ -37,8 +37,13 @@ async function n8n(path: string): Promise<any> {
       basePath = base;
       return res.json();
     }
-    ultimo = `n8n ${base}${path}: ${res.status} ${(await res.text()).slice(0, 200)}`;
-    if (res.status !== 404) break;
+    const erro = `n8n ${base}${path}: ${res.status} ${(await res.text()).slice(0, 200)}`;
+    if (res.status === 403) {
+      ultimo = `${erro} — a chave do n8n (N8N_API_KEY) não tem acesso às data tables. Crie uma chave com os escopos dataTable:list/read e dataTableRow:read (ou sem restrição de escopo).`;
+    } else if (!ultimo || res.status !== 404) {
+      ultimo = erro;
+    }
+    if (res.status !== 404 && res.status !== 403) break;
   }
   throw new Error(ultimo);
 }
