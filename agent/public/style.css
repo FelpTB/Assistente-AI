@@ -313,3 +313,25 @@ a.row.mail:hover .title { color: var(--accent); }
 .dot.warn { background: var(--warn); }
 .tag.ok { background: var(--ok-soft); color: var(--ok); }
 .small-value { font-size: 14px !important; }
+
+/* ---- Busca Fornecedor: últimas buscas ---- */
+.buscas { display: flex; flex-direction: column; }
+.busca { border-top: 1px solid var(--border); }
+.busca summary { display: flex; gap: 12px; align-items: flex-start; padding: 10px 2px; cursor: pointer; list-style: none; }
+.busca summary::-webkit-details-marker { display: none; }
+.busca summary:hover { background: var(--surface-2); }
+.busca summary .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.busca summary .meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.busca-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; flex: none; max-width: 40%; }
+.busca[open] summary { font-weight: normal; }
+.busca-corpo { padding: 4px 2px 14px 104px; }
+.params { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 13px; margin: 0 0 10px; }
+.params dt { color: var(--muted); }
+.params dd { margin: 0; overflow-wrap: anywhere; }
+#bf-cad-tipo { margin-bottom: 0; }
+@media (max-width: 900px) {
+  .busca summary { flex-wrap: wrap; }
+  .busca-tags { max-width: none; justify-content: flex-start; }
+  .busca-corpo { padding-left: 2px; }
+}
+.tbl td.nw { white-space: nowrap; }

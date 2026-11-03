@@ -1,7 +1,9 @@
 import { config } from "./config.js";
 
 // Painel do projeto Busca Fornecedor: site (Lovable), banco (Supabase) e automações (n8n).
-// Só leituras, e o dashboard recebe apenas números agregados: nenhum nome, telefone ou CNPJ sai daqui.
+// Só leituras. As métricas são agregadas; as listas de últimas buscas e cadastros mostram registros
+// individuais (só para o login do dashboard), com telefone mascarado e sem senhas, tokens ou contatos
+// dos fornecedores encontrados. Nada é guardado aqui além do cache em memória.
 
 const bf = config.buscaFornecedor;
 const DIA = 86400000;
@@ -174,6 +176,135 @@ export const metricasBanco = cache(10 * 60_000, async () => {
       comErro30d: conta(perfis30, (p) => !!p.error),
       whatsappValido30d: conta(perfis30, (p) => !!p.whatsapp_valido),
     },
+  };
+});
+
+// ---- Últimas buscas e cadastros (registros individuais) ----------------------
+
+const mascarar = (tel: string | null) => (tel ? `•••• ${tel.replace(/\D/g, "").slice(-4)}` : null);
+const comoLista = (v: unknown) => (Array.isArray(v) ? v.filter(Boolean).map(String) : v ? [String(v)] : []);
+
+/** Itens de `resultados`: às vezes vêm aninhados em arrays e quase sempre dentro de { item }. */
+function itensResultado(res: unknown): any[] {
+  if (!Array.isArray(res)) return [];
+  return res.flatMap((e) => (Array.isArray(e) ? itensResultado(e) : [e?.item ?? e])).filter((x) => x && typeof x === "object");
+}
+
+export const ultimasBuscas = cache(2 * 60_000, async () => {
+  type Linha = {
+    id: string;
+    created_at: string;
+    status: string | null;
+    origem: string | null;
+    qualidade: string | null;
+    fallback: boolean | null;
+    parametros: Record<string, any> | null;
+    resultados: unknown;
+    comprador: string | null;
+    uf: string[] | null;
+    municipio: string[] | null;
+    bm_25: string | null;
+    modelo_negocio: string | null;
+  };
+  const linhas = (await (
+    await rest(
+      "consultas",
+      "select=id,created_at,status,origem,qualidade,fallback,parametros,resultados,comprador,uf,municipio,bm_25,modelo_negocio&order=created_at.desc&limit=40",
+    )
+  ).json()) as Linha[];
+
+  const ids = [...new Set(linhas.map((l) => l.comprador).filter(Boolean))];
+  const compradores = new Map<string, { nome: string | null; empresa: string | null }>();
+  if (ids.length) {
+    const cs = (await (await rest("usuario_comprador", `select=id,nome,empresa_nome&id=in.(${ids.join(",")})`)).json()) as any[];
+    for (const c of cs) compradores.set(c.id, { nome: c.nome, empresa: c.empresa_nome });
+  }
+
+  const buscas = linhas.map((l) => {
+    const p = l.parametros ?? {};
+    const itens = itensResultado(l.resultados)
+      .map((i) => ({
+        posicao: Number(i.posicao) || null,
+        empresa: i.razao_social ?? null,
+        nota: i.nota != null ? Number(i.nota) : null,
+        modelo: i.modelo_negocio ?? null,
+        escopo: i.escopo ?? null,
+        plano: i.plano_categoria ?? null,
+        site: i.site || null,
+      }))
+      .sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999) || (b.nota ?? 0) - (a.nota ?? 0));
+    const notas = itens.map((i) => i.nota).filter((n): n is number => n != null);
+    const ufs = comoLista(p.ufs_selecionadas).length ? comoLista(p.ufs_selecionadas) : (l.uf ?? []);
+    return {
+      id: l.id,
+      em: l.created_at,
+      status: l.status,
+      origem: l.origem,
+      qualidade: l.qualidade,
+      fallback: !!l.fallback,
+      comprador: l.comprador ? (compradores.get(l.comprador) ?? null) : null,
+      descricao: String(p.descricao ?? p.raw ?? "").trim() || null,
+      tipoBusca: p.tipo_busca ?? null,
+      local:
+        p.tipo_busca === "city"
+          ? `${p.cidade_origem ?? "?"}${p.raio_km ? ` · raio de ${p.raio_km} km` : ""}`
+          : ufs.length
+            ? ufs.join(", ")
+            : "Brasil",
+      municipios: (l.municipio ?? []).length,
+      modeloNegocio: p.modelo_negocio || l.modelo_negocio || null,
+      termos: l.bm_25,
+      nResultados: itens.length,
+      notaMedia: notas.length ? Math.round(notas.reduce((a, b) => a + b, 0) / notas.length) : null,
+      notaMin: notas.length ? Math.min(...notas) : null,
+      resultados: itens,
+    };
+  });
+  return { buscas };
+});
+
+export const ultimosCadastros = cache(2 * 60_000, async () => {
+  const [compradores, fornecedores] = await Promise.all([
+    rest(
+      "usuario_comprador",
+      "select=id,created_at,nome,empresa_nome,telefone,fonte,tier_busca,telefone_verificado,buscas_realizadas,limite_buscas,n_acessos,acesso_agente,embaixador_referente_id&order=created_at.desc&limit=25",
+    ).then((r) => r.json() as Promise<any[]>),
+    rest(
+      "usuario_fornecedor",
+      "select=id,created_at,nome,cnpj,telefone,plano_categoria,assinatura_ativa,cadastro_incompleto,perfil_completude,n_creditos,n_creditos_gastos,n_acessos,upgrade_status&order=created_at.desc&limit=25",
+    ).then((r) => r.json() as Promise<any[]>),
+  ]);
+  return {
+    compradores: compradores.map((c) => ({
+      id: c.id,
+      em: c.created_at,
+      nome: c.nome,
+      empresa: c.empresa_nome,
+      telefone: mascarar(c.telefone),
+      telefoneVerificado: !!c.telefone_verificado,
+      fonte: c.fonte,
+      tier: c.tier_busca,
+      buscas: Number(c.buscas_realizadas) || 0,
+      limiteBuscas: c.limite_buscas != null ? Number(c.limite_buscas) : null,
+      acessos: Number(c.n_acessos) || 0,
+      agente: !!c.acesso_agente,
+      indicado: !!c.embaixador_referente_id,
+    })),
+    fornecedores: fornecedores.map((f) => ({
+      id: f.id,
+      em: f.created_at,
+      nome: f.nome,
+      cnpj: f.cnpj,
+      telefone: mascarar(f.telefone),
+      plano: f.plano_categoria,
+      assinaturaAtiva: !!f.assinatura_ativa,
+      cadastroIncompleto: !!f.cadastro_incompleto,
+      completude: f.perfil_completude,
+      creditos: Number(f.n_creditos) || 0,
+      creditosGastos: Number(f.n_creditos_gastos) || 0,
+      acessos: Number(f.n_acessos) || 0,
+      upgrade: f.upgrade_status,
+    })),
   };
 });
 

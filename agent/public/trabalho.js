@@ -108,14 +108,20 @@ let bancoCache = null; // para redesenhar os gráficos no resize
 export function renderBuscaFornecedor(el) {
   el.innerHTML = `
     <div class="page-head" style="margin-bottom:12px">
-      <div class="muted small">Site no Lovable, banco no Supabase e automações no n8n. Só números agregados: nenhum dado pessoal aparece aqui.</div>
+      <div class="muted small">Site no Lovable, banco no Supabase e automações no n8n. Métricas agregadas, últimas buscas e últimos cadastros (telefones mascarados).</div>
       <button class="btn sm" id="bf-atual">Atualizar tudo</button>
     </div>
     <div class="grid">
       <section class="card span-4"><div class="card-head"><h2>Site</h2><span class="muted small">Lovable</span></div><div id="bf-site"></div></section>
       <section class="card span-8"><div class="card-head"><h2>Automações</h2><span class="muted small">n8n</span></div><div id="bf-n8n-kpis"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Consultas</h2><span class="muted small" id="bf-banco-at">Supabase</span></div><div id="bf-consultas"></div></section>
+      <section class="card span-12"><div class="card-head"><h2>Últimas buscas</h2>
+        <div class="periodo"><select id="bf-buscas-origem"></select><select id="bf-buscas-qual"></select></div></div>
+        <div id="bf-buscas"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Cadastros</h2><span class="muted small">compradores e fornecedores</span></div><div id="bf-cadastros"></div></section>
+      <section class="card span-12"><div class="card-head"><h2>Últimos cadastros</h2>
+        <div class="theme-switch" id="bf-cad-tipo" role="group"><button data-t="compradores" aria-pressed="true">Compradores</button><button data-t="fornecedores" aria-pressed="false">Fornecedores</button></div></div>
+        <div id="bf-cad-lista"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Compradores</h2></div><div id="bf-compradores"></div></section>
       <section class="card span-6"><div class="card-head"><h2>Fornecedores</h2></div><div id="bf-fornecedores"></div></section>
       <section class="card span-12"><div class="card-head"><h2>Perfis de empresa</h2><span class="muted small">company_profile</span></div><div id="bf-perfis"></div></section>
@@ -126,6 +132,8 @@ export function renderBuscaFornecedor(el) {
     fill($("#bf-site"), () => api(`/projetos/busca-fornecedor/site${q}`), drawSite);
     carregarN8n(q);
     carregarBanco(q);
+    carregarBuscas(q);
+    carregarCadastros(q);
   };
   $("#bf-atual").onclick = () => carregar(true);
   carregar(false);
@@ -396,4 +404,128 @@ function drawTabelas(ts) {
     .map((t) => `<div class="row"><div class="grow"><b>${esc(t.nome)}</b> <span class="muted small">${esc(t.id)}</span>
       <div class="small muted">${t.colunas.length ? t.colunas.map((c) => `${esc(c.nome)} (${esc(c.tipo)})`).join(" · ") : "colunas não informadas pela API"}</div></div></div>`)
     .join("")}</div>`;
+}
+
+// ---- Últimas buscas ---------------------------------------------------------
+
+let buscasCache = [];
+
+async function carregarBuscas(q) {
+  const el = $("#bf-buscas");
+  el.innerHTML = `<div class="loading">Carregando…</div>`;
+  try {
+    buscasCache = (await api(`/projetos/busca-fornecedor/buscas${q}`)).buscas;
+    const opcoes = (l) => [...new Set(l.filter(Boolean))].map((o) => `<option>${esc(o)}</option>`).join("");
+    $("#bf-buscas-origem").innerHTML = `<option value="">Todas as origens</option>${opcoes(buscasCache.map((b) => b.origem))}`;
+    $("#bf-buscas-qual").innerHTML = `<option value="">Qualquer qualidade</option><option value="sem">Sem avaliação</option>${opcoes(buscasCache.map((b) => b.qualidade))}`;
+    $("#bf-buscas-origem").onchange = $("#bf-buscas-qual").onchange = drawBuscas;
+    drawBuscas();
+  } catch (err) {
+    el.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+  }
+}
+
+const TOM_QUALIDADE = { Ótimo: "ok", Bom: "ok", Ruim: "alta", Péssimo: "alta" };
+const tagQualidade = (q) => (q ? `<span class="tag ${TOM_QUALIDADE[q] ?? ""}">${esc(q)}</span>` : `<span class="tag">sem avaliação</span>`);
+const quando = (iso) => fmtData(iso, { semana: false });
+const linkSite = (s) =>
+  `<a href="${esc(/^https?:\/\//.test(s) ? s : `https://${s}`)}" target="_blank" rel="noopener">${esc(s.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>`;
+
+function drawBuscas() {
+  const origem = $("#bf-buscas-origem").value;
+  const qual = $("#bf-buscas-qual").value;
+  const bs = buscasCache.filter((b) => (!origem || b.origem === origem) && (!qual || (qual === "sem" ? !b.qualidade : b.qualidade === qual)));
+  $("#bf-buscas").innerHTML = bs.length
+    ? `<p class="small muted">${bs.length} de ${buscasCache.length} buscas mais recentes. Clique numa busca para ver os parâmetros e os resultados.</p>
+       <div class="buscas">${bs.map(drawBusca).join("")}</div>`
+    : `<div class="empty">Nenhuma busca com esses filtros.</div>`;
+}
+
+function drawBusca(b) {
+  const quem = b.comprador ? [b.comprador.nome, b.comprador.empresa].filter(Boolean).join(" · ") : "sem comprador";
+  const poucos = b.status !== "pending" && b.nResultados < 5;
+  return `<details class="busca">
+    <summary>
+      <span class="when">${esc(quando(b.em))}</span>
+      <span class="grow"><b>${esc(b.descricao ?? "(sem descrição)")}</b>
+        <span class="meta"><span>${esc(b.local)}</span><span>${esc(quem)}</span><span>${esc(b.origem ?? "?")}</span></span></span>
+      <span class="busca-tags">
+        ${b.status === "pending" ? `<span class="tag alta">pendente</span>` : `<span class="tag ${poucos ? "alta" : ""}">${b.nResultados} resultado(s)</span>`}
+        ${b.fallback ? `<span class="tag alta">fallback</span>` : ""}
+        ${tagQualidade(b.qualidade)}
+      </span>
+    </summary>
+    <div class="busca-corpo">
+      <dl class="params">
+        <dt>Tipo</dt><dd>${esc(b.tipoBusca ?? "—")}</dd>
+        <dt>Local</dt><dd>${esc(b.local)}${b.municipios ? ` <span class="muted">(${b.municipios} municípios)</span>` : ""}</dd>
+        ${b.modeloNegocio ? `<dt>Modelo</dt><dd>${esc(b.modeloNegocio)}</dd>` : ""}
+        <dt>Termos</dt><dd>${esc(b.termos ?? "—")}</dd>
+        <dt>Notas</dt><dd>${b.notaMedia != null ? `média ${b.notaMedia} · mínima ${b.notaMin}` : "—"}</dd>
+      </dl>
+      ${
+        b.resultados.length
+          ? `<div style="overflow-x:auto"><table class="tbl">
+          <thead><tr><th>#</th><th>Empresa</th><th>Nota</th><th>Modelo</th><th>Escopo</th><th>Plano</th><th>Site</th></tr></thead>
+          <tbody>${b.resultados
+            .map(
+              (r, i) => `<tr><td>${r.posicao ?? i + 1}</td><td>${esc(r.empresa ?? "—")}</td><td>${r.nota ?? "—"}</td>
+              <td>${esc(r.modelo ?? "—")}</td><td>${esc(r.escopo ?? "—")}</td>
+              <td>${r.plano ? `<span class="tag ok">${esc(r.plano)}</span>` : ""}</td><td>${r.site ? linkSite(r.site) : ""}</td></tr>`,
+            )
+            .join("")}</tbody></table></div>`
+          : `<div class="empty">Sem resultados.</div>`
+      }
+    </div>
+  </details>`;
+}
+
+// ---- Últimos cadastros ------------------------------------------------------
+
+let cadastrosCache = null;
+let cadastroTipo = "compradores";
+
+function carregarCadastros(q) {
+  $("#bf-cad-tipo").onclick = (e) => {
+    const t = e.target.closest("button")?.dataset.t;
+    if (!t) return;
+    cadastroTipo = t;
+    $("#bf-cad-tipo").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === t)));
+    if (cadastrosCache) $("#bf-cad-lista").innerHTML = drawCadastros(cadastrosCache);
+  };
+  fill($("#bf-cad-lista"), () => api(`/projetos/busca-fornecedor/cadastros${q}`), (c) => {
+    cadastrosCache = c;
+    return drawCadastros(c);
+  });
+}
+
+const selo = (v, texto, tom = "ok") => (v ? `<span class="tag ${tom}">${texto}</span>` : "");
+
+function drawCadastros(c) {
+  if (cadastroTipo === "compradores") {
+    if (!c.compradores.length) return `<div class="empty">Nenhum comprador.</div>`;
+    return `<div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th>Cadastro</th><th>Nome</th><th>Empresa</th><th>Telefone</th><th>Fonte</th><th>Tier</th><th>Buscas</th><th>Acessos</th><th></th></tr></thead>
+      <tbody>${c.compradores
+        .map(
+          (u) => `<tr><td class="nw">${esc(quando(u.em))}</td><td>${esc(u.nome ?? "—")}</td><td>${esc(u.empresa ?? "—")}</td>
+          <td class="nw">${esc(u.telefone ?? "—")} ${selo(u.telefoneVerificado, "verificado")}</td>
+          <td>${esc(u.fonte ?? "—")}</td><td>${esc(u.tier ?? "—")}</td>
+          <td>${u.buscas}${u.limiteBuscas != null ? ` / ${u.limiteBuscas}` : ""}</td><td>${u.acessos}</td>
+          <td>${selo(u.agente, "agente")} ${selo(u.indicado, "indicado", "")}</td></tr>`,
+        )
+        .join("")}</tbody></table></div>`;
+  }
+  if (!c.fornecedores.length) return `<div class="empty">Nenhum fornecedor.</div>`;
+  return `<div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>Cadastro</th><th>Nome</th><th>CNPJ</th><th>Telefone</th><th>Plano</th><th>Perfil</th><th>Créditos</th><th>Acessos</th><th></th></tr></thead>
+    <tbody>${c.fornecedores
+      .map(
+        (f) => `<tr><td class="nw">${esc(quando(f.em))}</td><td>${esc(f.nome ?? "—")}</td><td class="nw">${esc(f.cnpj ?? "—")}</td><td class="nw">${esc(f.telefone ?? "—")}</td>
+        <td>${esc(f.plano ?? "—")} ${selo(f.assinaturaAtiva, "assinante")}</td>
+        <td>${f.completude != null ? `${f.completude}%` : "—"} ${selo(f.cadastroIncompleto, "incompleto", "alta")}</td>
+        <td>${f.creditos} <span class="muted small">(${f.creditosGastos} gastos)</span></td><td>${f.acessos}</td>
+        <td>${f.upgrade ? `<span class="tag">${esc(f.upgrade)}</span>` : ""}</td></tr>`,
+      )
+      .join("")}</tbody></table></div>`;
 }

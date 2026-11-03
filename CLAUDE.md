@@ -47,7 +47,7 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 - ⚠️ Planilha em locale **pt_BR**: fórmulas usam `;` como separador. Ao gravar via API, enviar datas e valores como números (não texto) e acrescentar linhas com append em `Lançamentos!A:H`.
 
 ### Painel Busca Fornecedor
-- Lê o Supabase abcAdvise pela API REST com a chave service_role (`BF_SUPABASE_KEY`), só colunas não pessoais, e devolve **apenas agregados** ao dashboard. Resultados em cache de 10 min.
+- Lê o Supabase abcAdvise pela API REST com a chave service_role (`BF_SUPABASE_KEY`). Métricas agregadas (cache de 10 min) e listas das **últimas 40 buscas** (parâmetros, termos, resultados com nota/modelo/escopo/plano/site, qualidade, fallback) e dos **últimos 25 compradores e fornecedores** (cache de 2 min). Telefones mascarados; nunca senha, token nem contatos dos fornecedores encontrados.
 - `company_profile` tem ~585 mil linhas e `created_at` **sem índice** (contar por data leva ~5 s; o limite da API é 8 s): o total vem da estimativa do Postgres e os novos são lidos pelas 10 mil linhas mais recentes por `id`.
 - Site: verificação HTTP de `BF_SITE_URL`. n8n: API pública (`N8N_URL`, `N8N_API_KEY`), todas as execuções.
 
