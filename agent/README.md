@@ -20,6 +20,7 @@ As respostas começam com 🤖, e o agente ignora as próprias mensagens.
 - `resumo dos gastos de outubro`
 - `e-mails importantes de hoje`
 - `/reset` → limpa a memória da conversa
+- `/ponto` (ou `/ponto AAAA-MM`) → roda agora a rotina do ponto: resume o mês anterior (ou o informado) e pede aprovação para enviar o e-mail
 
 ---
 

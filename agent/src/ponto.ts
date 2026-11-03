@@ -177,6 +177,7 @@ export async function pontoDoMes(mes: string) {
     mes,
     nomeMes: `${MESES[Number(mes.slice(5)) - 1]} de ${mes.slice(0, 4)}`,
     tabela: tabela.name as string,
+    enviarPara: p.email,
     dias: resultado,
     diasTrabalhados: resultado.filter((d) => d.minutos > 0).length,
     totalMinutos: total,

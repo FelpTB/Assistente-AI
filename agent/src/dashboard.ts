@@ -17,7 +17,7 @@ import {
 } from "./tools/gastos.js";
 import { emailsDoDia, emailsRecentes } from "./tools/emails.js";
 import { execucoesN8n, metricasBanco, statusSite } from "./buscaFornecedor.js";
-import { mesAnterior, planilhaPonto, pontoDoMes, tabelasN8n } from "./ponto.js";
+import { enviarPonto, mesAnterior, planilhaPonto, pontoDoMes, pontoJaEnviado, tabelasN8n } from "./ponto.js";
 
 const resumosPorEmail = new Map<string, { resumo: string; acao: string | null }>();
 
@@ -272,6 +272,9 @@ export function registerDashboardRoutes(app: Express) {
   // ---- Ponto (data table do n8n) ----
   api.get("/ponto/tabelas", route(async () => tabelasN8n()));
   api.get("/ponto", route(async (req) => pontoDoMes(String(req.query.mes || mesAnterior()))));
+  api.get("/ponto/enviado", route(async (req) => ({ enviado: await pontoJaEnviado(String(req.query.mes || mesAnterior())) })));
+  // Roda a rotina de envio na hora: gera a planilha do mês e manda para PONTO_EMAIL.
+  api.post("/ponto/enviar", route(async (req) => enviarPonto(String(req.body?.mes || mesAnterior()))));
   api.get("/ponto/planilha", async (req, res) => {
     try {
       const r = await planilhaPonto(String(req.query.mes || mesAnterior()));

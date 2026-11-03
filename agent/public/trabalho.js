@@ -307,21 +307,54 @@ export function renderPonto(el) {
       <div class="card-head"><h2>Ponto do mês</h2>
         <div class="periodo">
           <input type="month" id="p-mes" value="${mesAnteriorISO()}">
-          <a class="btn sm primary" id="p-baixar" href="#">Baixar planilha (.xlsx)</a>
+          <a class="btn sm" id="p-baixar" href="#">Baixar planilha (.xlsx)</a>
+          <button class="btn sm primary" id="p-enviar">Enviar por e-mail</button>
         </div></div>
-      <p class="small muted">Lido da tabela de ponto do n8n. No dia 1, o agente prepara o mês anterior e pede aprovação no WhatsApp antes de enviar por e-mail.</p>
+      <p class="small muted">Lido da tabela de ponto do n8n. No dia 1, o agente prepara o mês anterior e pede aprovação no WhatsApp antes de enviar por e-mail.
+        Para rodar a rotina agora, use <b>Enviar por e-mail</b> ou mande <b>/ponto</b> no grupo do WhatsApp.</p>
+      <div id="p-status"></div>
       <div id="p-dados"></div>
     </section>
     <section class="card" style="margin-top:16px">
       <div class="card-head"><h2>Tabelas no n8n</h2><button class="btn sm" id="p-tabelas">Mostrar</button></div>
       <div id="p-lista"></div>
     </section>`;
-  const carregar = () => {
+  let atual = null; // último resumo carregado (mês, destinatário)
+  const carregar = async () => {
     const mes = $("#p-mes").value;
     $("#p-baixar").href = `/api/ponto/planilha?mes=${mes}`;
-    fill($("#p-dados"), () => api(`/ponto?mes=${mes}`), drawPonto);
+    $("#p-status").innerHTML = "";
+    atual = await fill($("#p-dados"), () => api(`/ponto?mes=${mes}`), drawPonto);
+    if (atual?.dias?.length)
+      api(`/ponto/enviado?mes=${mes}`)
+        .then((r) => {
+          if (r.enviado && $("#p-mes").value === mes)
+            $("#p-status").innerHTML = `<div class="notice">A planilha de ${esc(atual.nomeMes)} já foi enviada para ${esc(atual.enviarPara)}. Enviar de novo manda outra cópia.</div>`;
+        })
+        .catch(() => {});
   };
   $("#p-mes").onchange = carregar;
+  $("#p-enviar").onclick = async () => {
+    const mes = $("#p-mes").value;
+    const btn = $("#p-enviar");
+    if (atual && atual.mes === mes && !atual.dias.length) {
+      $("#p-status").innerHTML = `<div class="error">Não há registros em ${esc(atual.nomeMes)} para enviar.</div>`;
+      return;
+    }
+    const para = atual?.enviarPara ?? "o e-mail configurado";
+    if (!confirm(`Enviar a planilha de ponto de ${atual?.nomeMes ?? mes} para ${para}?`)) return;
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+    try {
+      const r = await api("/ponto/enviar", { method: "POST", body: { mes } });
+      $("#p-status").innerHTML = `<div class="notice">Enviado para <b>${esc(r.enviadoPara)}</b>: ${esc(r.mes)}, ${r.diasTrabalhados} dias, total ${esc(r.total)}${r.incompletos.length ? ` · ${r.incompletos.length} dia(s) com registro incompleto` : ""}.</div>`;
+    } catch (err) {
+      $("#p-status").innerHTML = `<div class="error">${esc(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Enviar por e-mail";
+    }
+  };
   $("#p-tabelas").onclick = () => fill($("#p-lista"), () => api("/ponto/tabelas"), drawTabelas);
   carregar();
 }

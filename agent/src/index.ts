@@ -107,6 +107,13 @@ app.post("/webhook/evolution", (req, res) => {
 
 async function processMessage(chatJid: string, text: string) {
   console.log(`[msg] ${chatJid}: ${text.slice(0, 120)}`);
+  // "/ponto" ou "/ponto 2026-10": roda agora a rotina do ponto (prepara a planilha e pede aprovação).
+  const cmdPonto = text.trim().match(/^\/ponto(?:\s+(\d{4})-(\d{1,2}))?$/i);
+  if (cmdPonto) {
+    const mes = cmdPonto[1] ? `${cmdPonto[1]}-${cmdPonto[2].padStart(2, "0")}` : mesAnterior();
+    await prepararPonto(chatJid, mes, true);
+    return;
+  }
   if (text === "/reset") {
     resetHistory(chatJid);
     await sendText(chatJid, `${config.replyPrefix}Memória da conversa limpa.`);
@@ -133,16 +140,22 @@ async function verificarPontoMensal() {
   const mes = mesAnterior();
   if (pontoAvisado.has(mes)) return;
   pontoAvisado.add(mes);
+  await prepararPonto(chat, mes, false);
+}
+
+/** Prepara a planilha do mês e pede aprovação no grupo. Manual = disparado por /ponto (ignora "já enviado"). */
+async function prepararPonto(chat: string, mes: string, manual: boolean) {
   try {
-    if (await pontoJaEnviado(mes)) return;
+    const jaEnviado = await pontoJaEnviado(mes);
+    if (jaEnviado && !manual) return;
     const r = await pontoDoMes(mes);
     const texto = r.dias.length
       ? `Planilha de ponto de *${r.nomeMes}* pronta:\n• ${r.diasTrabalhados} dias com registro\n• Total: *${r.total}*` +
         (r.incompletos.length ? `\n• Registro incompleto em ${r.incompletos.length} dia(s): ${r.incompletos.map((d) => d.slice(8, 10) + "/" + d.slice(5, 7)).join(", ")}` : "") +
-        `\n\nPosso enviar para ${config.ponto.email}?`
+        (jaEnviado ? `\n\n⚠️ Essa planilha já foi enviada antes. Quer mandar de novo para ${config.ponto.email}?` : `\n\nPosso enviar para ${config.ponto.email}?`)
       : `Não encontrei registros de ponto de ${config.ponto.funcionario} em ${r.nomeMes}, então não há planilha para enviar.`;
     await sendText(chat, `${config.replyPrefix}${texto}`);
-    anotarAviso(chat, `Dia 1: planilha de ponto de ${r.nomeMes} (mes=${mes}) preparada; pedir aprovação para enviar.`, texto);
+    anotarAviso(chat, `${manual ? "Comando /ponto" : "Dia 1"}: planilha de ponto de ${r.nomeMes} (mes=${mes}) preparada; pedir aprovação para enviar.`, texto);
   } catch (err: any) {
     console.error("[ponto]", err?.message ?? err);
     await sendText(chat, `${config.replyPrefix}Não consegui preparar a planilha de ponto: ${err?.message ?? err}`).catch(console.error);
