@@ -387,7 +387,7 @@ async function carregarBanco(q) {
   try {
     const b = await api(`/projetos/busca-fornecedor/banco${q}`);
     bancoCache = b;
-    $("#bf-banco-at").textContent = `Supabase · atualizado às ${fmtHora(b.atualizadoEm)}`;
+    $("#consultas-sub").textContent = `Supabase · atualizado às ${fmtHora(b.atualizadoEm)}`;
     drawBanco(b);
   } catch (err) {
     ids.forEach((id) => ($(id).innerHTML = `<div class="error">${esc(err.message)}</div>`));
