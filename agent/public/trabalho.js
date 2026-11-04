@@ -105,38 +105,225 @@ function drawEmailsHoje(es) {
 
 let bancoCache = null; // para redesenhar os gráficos no resize
 
+// ---- Seções recolhíveis ------------------------------------------------------
+// O estado (aberta/fechada) de cada seção fica salvo no navegador.
+
+const CHAVE_SECOES = "bf-secoes";
+let estadoSecoes = {};
+try {
+  estadoSecoes = JSON.parse(localStorage.getItem(CHAVE_SECOES) ?? "{}");
+} catch {}
+const aoAbrir = {}; // id da seção → carregamento sob demanda
+
+function secao({ id, titulo, sub = "", extra = "", span = 12, spanFechada = span, aberto = true, corpo }) {
+  const open = estadoSecoes[id] ?? aberto;
+  return `<section class="card recolhivel span-${open ? span : spanFechada} ${open ? "" : "fechada"}" data-secao="${id}" data-span="${span}" data-span-fechada="${spanFechada}">
+    <div class="card-head"><button class="secao-toggle" type="button" aria-expanded="${open}"><span class="chev" aria-hidden="true"></span><h2>${titulo}</h2></button>
+      <span class="muted small secao-sub" id="${id}-sub">${sub}</span><div class="secao-extra">${extra}</div></div>
+    <div class="secao-corpo" id="${corpo}"></div></section>`;
+}
+
+function alternarSecao(sec, abrir = sec.classList.contains("fechada")) {
+  sec.classList.toggle("fechada", !abrir);
+  sec.classList.remove(`span-${sec.dataset.span}`, `span-${sec.dataset.spanFechada}`);
+  sec.classList.add(`span-${abrir ? sec.dataset.span : sec.dataset.spanFechada}`);
+  sec.querySelector(".secao-toggle").setAttribute("aria-expanded", String(abrir));
+  estadoSecoes[sec.dataset.secao] = abrir;
+  try {
+    localStorage.setItem(CHAVE_SECOES, JSON.stringify(estadoSecoes));
+  } catch {}
+  if (abrir) {
+    aoAbrir[sec.dataset.secao]?.();
+    redesenharTrabalho();
+  }
+}
+
 export function renderBuscaFornecedor(el) {
+  const grupos = [...new Set(ADMIN_GRUPOS)];
   el.innerHTML = `
-    <div class="page-head" style="margin-bottom:12px">
-      <div class="muted small">Site no Lovable, banco no Supabase e automações no n8n. Métricas agregadas, últimas buscas e últimos cadastros (telefones mascarados).</div>
-      <button class="btn sm" id="bf-atual">Atualizar tudo</button>
+    <div class="page-head" style="margin-bottom:10px">
+      <div class="muted small">Site no Lovable, banco no Supabase e automações no n8n. Telefones e e-mails mascarados; chaves e códigos nunca são lidos.</div>
+      <div class="periodo"><button class="btn sm" id="bf-recolher">Recolher tudo</button><button class="btn sm" id="bf-atual">Atualizar tudo</button></div>
     </div>
+    <div id="bf-alertas" class="alertas"></div>
     <div class="grid">
-      <section class="card span-4"><div class="card-head"><h2>Site</h2><span class="muted small">Lovable</span></div><div id="bf-site"></div></section>
-      <section class="card span-8"><div class="card-head"><h2>Automações</h2><span class="muted small">n8n</span></div><div id="bf-n8n-kpis"></div></section>
-      <section class="card span-12"><div class="card-head"><h2>Consultas</h2><span class="muted small" id="bf-banco-at">Supabase</span></div><div id="bf-consultas"></div></section>
-      <section class="card span-12"><div class="card-head"><h2>Últimas buscas</h2>
-        <div class="periodo"><select id="bf-buscas-origem"></select><select id="bf-buscas-qual"></select></div></div>
-        <div id="bf-buscas"></div></section>
-      <section class="card span-12"><div class="card-head"><h2>Cadastros</h2><span class="muted small">compradores e fornecedores</span></div><div id="bf-cadastros"></div></section>
-      <section class="card span-12"><div class="card-head"><h2>Últimos cadastros</h2>
-        <div class="theme-switch" id="bf-cad-tipo" role="group"><button data-t="compradores" aria-pressed="true">Compradores</button><button data-t="fornecedores" aria-pressed="false">Fornecedores</button></div></div>
-        <div id="bf-cad-lista"></div></section>
-      <section class="card span-6"><div class="card-head"><h2>Compradores</h2></div><div id="bf-compradores"></div></section>
-      <section class="card span-6"><div class="card-head"><h2>Fornecedores</h2></div><div id="bf-fornecedores"></div></section>
-      <section class="card span-12"><div class="card-head"><h2>Perfis de empresa</h2><span class="muted small">company_profile</span></div><div id="bf-perfis"></div></section>
-      <section class="card span-12"><div class="card-head"><h2>Últimas execuções do n8n</h2></div><div id="bf-n8n-lista"></div></section>
-    </div>`;
+      ${secao({ id: "site", titulo: "Site", sub: "Lovable", span: 4, corpo: "bf-site" })}
+      ${secao({ id: "automacoes", titulo: "Automações", sub: "n8n", span: 8, corpo: "bf-n8n-kpis" })}
+      ${secao({ id: "consultas", titulo: "Consultas", sub: "Supabase", corpo: "bf-consultas" })}
+      ${secao({ id: "cadastros", titulo: "Cadastros", sub: "compradores e fornecedores", corpo: "bf-cadastros" })}
+      ${secao({
+        id: "ultimas-buscas", titulo: "Últimas buscas", aberto: false, corpo: "bf-buscas",
+        extra: `<div class="periodo"><select id="bf-buscas-origem"></select><select id="bf-buscas-qual"></select></div>`,
+      })}
+      ${secao({
+        id: "ultimos-cadastros", titulo: "Últimos cadastros", aberto: false, corpo: "bf-cad-lista",
+        extra: `<div class="theme-switch" id="bf-cad-tipo" role="group"><button data-t="compradores" aria-pressed="true">Compradores</button><button data-t="fornecedores" aria-pressed="false">Fornecedores</button></div>`,
+      })}
+      ${secao({ id: "compradores", titulo: "Compradores", span: 6, aberto: false, corpo: "bf-compradores" })}
+      ${secao({ id: "fornecedores", titulo: "Fornecedores", span: 6, aberto: false, corpo: "bf-fornecedores" })}
+      ${secao({ id: "perfis", titulo: "Perfis de empresa", sub: "company_profile", aberto: false, corpo: "bf-perfis" })}
+      ${secao({ id: "execucoes", titulo: "Últimas execuções do n8n", aberto: false, corpo: "bf-n8n-lista" })}
+    </div>
+    <h2 class="grupo-titulo">Painel de admin</h2>
+    <div id="bf-admin">${grupos
+      .map(
+        (g) => `<h3 class="grupo-sub">${esc(g)}</h3><div class="grid" data-grupo="${esc(g)}"><div class="loading span-12">Carregando…</div></div>`,
+      )
+      .join("")}</div>`;
+
+  el.onclick = (e) => {
+    const t = e.target.closest(".secao-toggle");
+    if (t) return alternarSecao(t.closest(".recolhivel"));
+    const a = e.target.closest("[data-abrir]");
+    if (a) {
+      const sec = el.querySelector(`[data-secao="${a.dataset.abrir}"]`);
+      if (sec) {
+        alternarSecao(sec, true);
+        sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
+  $("#bf-recolher").onclick = () => el.querySelectorAll(".recolhivel:not(.fechada)").forEach((s) => alternarSecao(s, false));
+
   const carregar = (forcar) => {
     const q = forcar ? "?forcar=1" : "";
+    alertas.n8n = null;
     fill($("#bf-site"), () => api(`/projetos/busca-fornecedor/site${q}`), drawSite);
     carregarN8n(q);
     carregarBanco(q);
     carregarBuscas(q);
     carregarCadastros(q);
+    carregarAdmin(q);
   };
   $("#bf-atual").onclick = () => carregar(true);
   carregar(false);
+}
+
+// ---- Alertas no topo ----------------------------------------------------------
+
+const alertas = { n8n: null, tabelas: [] };
+
+function drawAlertas() {
+  const el = $("#bf-alertas");
+  if (!el) return;
+  const itens = [];
+  if (alertas.n8n) itens.push(`<button class="alerta" data-abrir="execucoes"><b>${num(alertas.n8n)}</b> erro(s) no n8n em 24 h</button>`);
+  for (const t of alertas.tabelas) itens.push(`<button class="alerta" data-abrir="t-${t.id}"><b>${num(t.pendentes)}</b> ${esc(t.nome.toLowerCase())} ${esc(t.pendenteNome)}</button>`);
+  el.innerHTML = itens.length ? itens.join("") : `<span class="alerta ok">Nada pendente no painel de admin.</span>`;
+}
+
+// ---- Painel de admin (tabelas do Supabase) ------------------------------------
+
+// Ordem dos grupos na página (os nomes vêm da API).
+const ADMIN_GRUPOS = ["Atendimento", "Busca", "Mensageria", "Engajamento", "Cadastro de perfis", "Sistema e acesso"];
+const detalhes = new Map(); // id → dados já carregados
+
+async function carregarAdmin(q) {
+  detalhes.clear();
+  try {
+    const r = await api(`/projetos/busca-fornecedor/tabelas${q}`);
+    for (const g of ADMIN_GRUPOS) {
+      const box = document.querySelector(`#bf-admin [data-grupo="${g}"]`);
+      if (!box) continue;
+      const ts = r.tabelas.filter((t) => t.grupo === g);
+      box.innerHTML = ts
+        .map((t) => secao({ id: `t-${t.id}`, titulo: esc(t.nome), sub: subTabela(t), span: 12, spanFechada: 6, aberto: false, corpo: `bf-t-${t.id}` }))
+        .join("");
+      for (const t of ts) {
+        aoAbrir[`t-${t.id}`] = () => carregarTabela(t, q);
+        if (estadoSecoes[`t-${t.id}`]) carregarTabela(t, q);
+      }
+    }
+    alertas.tabelas = r.tabelas.filter((t) => t.pendentes);
+    drawAlertas();
+  } catch (err) {
+    $("#bf-admin").innerHTML = `<div class="error">${esc(err.message)}</div>`;
+  }
+}
+
+function subTabela(t) {
+  if (t.erro) return `<span class="tag alta" title="${esc(t.erro)}">erro ao ler</span>`;
+  const partes = [`${t.estimado ? "≈ " : ""}${num(t.total)}`];
+  if (t.ult24h) partes.push(`+${num(t.ult24h)} em 24 h`);
+  let s = partes.join(" · ");
+  if (t.pendentes) s += ` <span class="tag alta">${num(t.pendentes)} ${esc(t.pendenteNome)}</span>`;
+  return s;
+}
+
+async function carregarTabela(t, q) {
+  const el = $(`#bf-t-${t.id}`);
+  if (!el || detalhes.has(t.id)) return;
+  detalhes.set(t.id, null);
+  el.innerHTML = `<div class="loading">Carregando…</div>`;
+  try {
+    const d = await api(`/projetos/busca-fornecedor/tabelas/${t.id}${q}`);
+    detalhes.set(t.id, d);
+    el.innerHTML = drawTabelaAdmin(t, d);
+  } catch (err) {
+    detalhes.delete(t.id);
+    el.innerHTML = `<div class="error">${esc(err.message)}</div>`;
+  }
+}
+
+function celula(v, tipo) {
+  if (v == null) return `<span class="muted">—</span>`;
+  switch (tipo) {
+    case "data":
+      return `<span class="nowrap">${esc(fmtData(v, { semana: false }))}</span>`;
+    case "bool":
+      return v ? `<span class="tag ok">sim</span>` : `<span class="muted">não</span>`;
+    case "link":
+      return linkSite(String(v));
+    case "tel":
+    case "email":
+      return `<span class="nowrap">${esc(v)}</span>`;
+    case "num":
+      return num(v);
+    case "texto":
+      return `<span class="cel-texto" title="${esc(v)}">${esc(v)}</span>`;
+    case "json":
+      return `<code class="small">${esc(v)}</code>`;
+    default:
+      return esc(v);
+  }
+}
+
+function drawTabelaAdmin(t, d) {
+  const kpis = [
+    kpi("Total", `${t.estimado ? "≈ " : ""}${num(t.total)}`),
+    t.ult24h != null ? kpi("Últimas 24 h", num(t.ult24h)) : "",
+    d.ult7d != null ? kpi("Últimos 7 dias", num(d.ult7d)) : "",
+    t.pendentes != null ? kpi(t.pendenteNome[0].toUpperCase() + t.pendenteNome.slice(1), num(t.pendentes), "", t.pendentes ? "neg" : "") : "",
+  ].filter(Boolean);
+  const dist = d.distribuicoes
+    .filter((x) => x.itens.length)
+    .map(
+      (x) => `<div class="dist"><span class="muted small">${esc(x.coluna)}</span>${x.itens
+        .map((i) => `<span class="pill">${esc(i.nome)} <b>${num(i.n)}</b></span>`)
+        .join("")}</div>`,
+    )
+    .join("");
+  const funil = d.funil
+    ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Variante</th><th class="num">Sessões</th>${d.funil.etapas.map((e) => `<th class="num">${esc(e)}</th>`).join("")}</tr></thead>
+        <tbody>${d.funil.grupos
+          .map(
+            (g) => `<tr><td><b>${esc(g.nome)}</b></td><td class="num">${num(g.total)}</td>${g.etapas
+              .map((n) => `<td class="num">${num(n)} <span class="muted small">${g.total ? Math.round((n / g.total) * 100) : 0}%</span></td>`)
+              .join("")}</tr>`,
+          )
+          .join("")}</tbody></table></div>`
+    : "";
+  const linhas = d.linhas.length
+    ? `<div class="tbl-wrap"><table class="tbl tbl-admin"><thead><tr>${d.colunas.map((c) => `<th>${esc(c.nome)}</th>`).join("")}</tr></thead>
+        <tbody>${d.linhas.map((l) => `<tr>${d.colunas.map((c) => `<td>${celula(l[c.c], c.tipo)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">Tabela vazia.</div>`;
+  return `
+    ${t.descricao ? `<p class="small muted" style="margin:0 0 8px">${esc(t.descricao)}</p>` : ""}
+    ${kpis.length > 1 ? `<div class="kpis kpis-${Math.min(kpis.length, 4)}">${kpis.join("")}</div>` : ""}
+    ${dist ? `<div class="dists">${dist}${d.amostra ? `<div class="small muted">nas ${num(d.amostra)} linhas mais recentes</div>` : ""}</div>` : ""}
+    ${funil}
+    <h3 class="small muted" style="margin:12px 0 6px">Mais recentes (${d.linhas.length})</h3>
+    ${linhas}`;
 }
 
 function drawSite(s) {
@@ -166,6 +353,8 @@ async function carregarN8n(q) {
       </div>
       ${n.errosPorWorkflow.length ? `<h3 class="small muted" style="margin:12px 0 8px">Erros por workflow · 7 dias</h3>${hBars(n.errosPorWorkflow.slice(0, 6).map((e) => ({ label: e.nome, value: e.n })), num)}` : ""}`;
     lista.innerHTML = drawExecucoes(n.ultimas, n.ultimosErros);
+    alertas.n8n = n.erros24h;
+    drawAlertas();
   } catch (err) {
     kpis.innerHTML = `<div class="error">${esc(err.message)}</div>`;
     lista.innerHTML = "";

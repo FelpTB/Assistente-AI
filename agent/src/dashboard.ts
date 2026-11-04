@@ -17,6 +17,7 @@ import {
 } from "./tools/gastos.js";
 import { emailsDoDia, emailsRecentes } from "./tools/emails.js";
 import { execucoesN8n, metricasBanco, statusSite, ultimasBuscas, ultimosCadastros } from "./buscaFornecedor.js";
+import { detalheTabela, resumoTabelas } from "./bfTabelas.js";
 import { enviarPonto, mesAnterior, planilhaPonto, pontoDoMes, pontoJaEnviado, tabelasN8n } from "./ponto.js";
 
 const resumosPorEmail = new Map<string, { resumo: string; acao: string | null }>();
@@ -270,6 +271,8 @@ export function registerDashboardRoutes(app: Express) {
   api.get("/projetos/busca-fornecedor/n8n", route(async (req) => execucoesN8n(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/buscas", route(async (req) => ultimasBuscas(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/cadastros", route(async (req) => ultimosCadastros(req.query.forcar === "1")));
+  api.get("/projetos/busca-fornecedor/tabelas", route(async (req) => resumoTabelas(req.query.forcar === "1")));
+  api.get("/projetos/busca-fornecedor/tabelas/:id", route(async (req) => detalheTabela(String(req.params.id), req.query.forcar === "1")));
 
   // ---- Ponto (data table do n8n) ----
   api.get("/ponto/tabelas", route(async () => tabelasN8n()));

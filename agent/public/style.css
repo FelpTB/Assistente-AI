@@ -335,3 +335,27 @@ a.row.mail:hover .title { color: var(--accent); }
   .busca-corpo { padding-left: 2px; }
 }
 .tbl td.nw { white-space: nowrap; }
+
+/* ---- Seções recolhíveis (Busca Fornecedor) ---- */
+.recolhivel > .card-head { gap: 10px; flex-wrap: wrap; }
+.secao-toggle { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.secao-toggle h2 { margin: 0; }
+.secao-toggle:hover h2 { color: var(--accent); }
+.chev { width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; margin: 0 2px 3px; flex: none; }
+.recolhivel.fechada .chev { transform: rotate(-45deg); margin-bottom: 0; }
+.secao-sub { flex: 1; min-width: 0; }
+.secao-extra:empty { display: none; }
+.recolhivel.fechada { padding-bottom: 12px; }
+.recolhivel.fechada > .card-head { margin-bottom: 0; }
+.recolhivel.fechada .secao-corpo, .recolhivel.fechada .secao-extra { display: none; }
+.alertas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.alerta { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 0; background: var(--bad-soft); color: var(--bad); cursor: pointer; }
+.alerta.ok { background: var(--ok-soft); color: var(--ok); cursor: default; }
+.grupo-titulo { font-size: 18px; margin: 26px 0 4px; }
+.grupo-sub { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 8px; font-weight: 600; }
+.dists { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.dist { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.dist > .muted { min-width: 90px; }
+.pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); white-space: nowrap; }
+.tbl-admin td { vertical-align: top; }
+.cel-texto { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; max-width: 380px; min-width: 180px; }

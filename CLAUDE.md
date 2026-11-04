@@ -48,6 +48,8 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 
 ### Painel Busca Fornecedor
 - Lê o Supabase abcAdvise pela API REST com a chave service_role (`BF_SUPABASE_KEY`). Métricas agregadas (cache de 10 min) e listas das **últimas 40 buscas** (parâmetros, termos, resultados com nota/modelo/escopo/plano/site, qualidade, fallback) e dos **últimos 25 compradores e fornecedores** (cache de 2 min). Telefones mascarados; nunca senha, token nem contatos dos fornecedores encontrados.
+- **Painel de admin** (`agent/src/bfTabelas.ts`): catálogo de ~32 tabelas de `busca_fornecedor` e `public` (feedbacks, contests de site, mensagens, avaliações, aparições, motor de busca, mensageria, engajamento, filas de cadastro, editor de perfil, configurações, chaves, admins, OTP). Cada tabela declara só as colunas exibidas; hash de chave, código OTP, chave de API e URL completa do webhook nunca são lidos; telefones/e-mails mascarados; variáveis com nome de segredo aparecem como •••. Totais e pendências (feedback sem resposta, contest em aberto, mensagem não lida, fila com erro) em cache de 5 min; detalhe carregado ao abrir o painel.
+- Na aba, todas as seções são recolhíveis (estado salvo no navegador, chave `bf-secoes`); alertas de pendências no topo abrem o painel correspondente.
 - `company_profile` tem ~585 mil linhas e `created_at` **sem índice** (contar por data leva ~5 s; o limite da API é 8 s): o total vem da estimativa do Postgres e os novos são lidos pelas 10 mil linhas mais recentes por `id`.
 - Site: verificação HTTP de `BF_SITE_URL`. n8n: API pública (`N8N_URL`, `N8N_API_KEY`), todas as execuções.
 
