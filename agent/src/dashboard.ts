@@ -18,6 +18,7 @@ import {
 import { emailsDoDia, emailsRecentes } from "./tools/emails.js";
 import { execucoesN8n, metricasBanco, statusSite, ultimasBuscas, ultimosCadastros } from "./buscaFornecedor.js";
 import { detalheTabela, resumoTabelas } from "./bfTabelas.js";
+import { cancelarTreino, desfazerSerie, ficha, finalizarTreino, iniciarTreino, registrarCardio, registrarSerie, relatorioTreino, subirPeso } from "./treino.js";
 import { enviarPonto, mesAnterior, planilhaPonto, pontoDoMes, pontoJaEnviado, tabelasN8n } from "./ponto.js";
 
 const resumosPorEmail = new Map<string, { resumo: string; acao: string | null }>();
@@ -273,6 +274,18 @@ export function registerDashboardRoutes(app: Express) {
   api.get("/projetos/busca-fornecedor/cadastros", route(async (req) => ultimosCadastros(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/tabelas", route(async (req) => resumoTabelas(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/tabelas/:id", route(async (req) => detalheTabela(String(req.params.id), req.query.forcar === "1")));
+
+  // ---- Academia: ficha de treino (planilha "Ficha de Treino") ----
+  const corpo = (req: Request) => req.body ?? {};
+  api.get("/treino", route(async () => ficha()));
+  api.get("/treino/relatorio", route(async (req) => relatorioTreino(req.query.mes ? String(req.query.mes) : undefined)));
+  api.post("/treino/iniciar", route(async (req) => iniciarTreino(String(corpo(req).treino ?? ""))));
+  api.post("/treino/serie", route(async (req) => registrarSerie(corpo(req))));
+  api.post("/treino/serie/desfazer", route(async (req) => desfazerSerie(corpo(req))));
+  api.post("/treino/subir-peso", route(async (req) => subirPeso(corpo(req))));
+  api.post("/treino/cardio", route(async (req) => registrarCardio(corpo(req))));
+  api.post("/treino/finalizar", route(async (req) => finalizarTreino(String(corpo(req).sessao ?? ""))));
+  api.post("/treino/cancelar", route(async (req) => cancelarTreino(String(corpo(req).sessao ?? ""))));
 
   // ---- Ponto (data table do n8n) ----
   api.get("/ponto/tabelas", route(async () => tabelasN8n()));

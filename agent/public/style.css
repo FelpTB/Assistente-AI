@@ -359,3 +359,53 @@ a.row.mail:hover .title { color: var(--accent); }
 .pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); white-space: nowrap; }
 .tbl-admin td { vertical-align: top; }
 .cel-texto { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; max-width: 380px; min-width: 180px; }
+
+/* ---- Academia: ficha de treino ---- */
+.tr-modalidades { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.tr-modalidade { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--text); cursor: pointer; }
+.tr-modalidade:hover { border-color: var(--accent); }
+.tr-modalidade b { font-size: 15px; }
+.tr-ficha { display: flex; flex-direction: column; }
+.tr-ficha-treino { border-top: 1px solid var(--border); }
+.tr-ficha-treino summary { padding: 10px 2px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; }
+.tr-barra { position: sticky; top: 0; z-index: 5; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, .06); }
+.tr-barra h2 { margin: 2px 0 0; }
+.tr-barra > div:first-child { flex: 1; min-width: 160px; }
+.tr-pontos { display: flex; flex-direction: column; align-items: center; }
+.tr-pontos b { font-size: 22px; }
+.tr-timer { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 10px; background: var(--surface-2); }
+.tr-timer b { font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tr-timer.rodando { background: var(--accent-soft); color: var(--accent); }
+.tr-timer.acabou { background: var(--ok-soft); color: var(--ok); animation: tr-pisca 1s 3; }
+@keyframes tr-pisca { 50% { opacity: .4; } }
+.tr-timer-btns { display: flex; gap: 4px; }
+.tr-exercicios { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.tr-ex { display: flex; flex-direction: column; gap: 10px; }
+.tr-ex-ok { border-color: var(--ok); }
+.tr-ex-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.tr-series { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.tr-serie { font-size: 12px; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+.tr-serie.ok { background: var(--ok-soft); color: var(--ok); }
+.tr-serie.ruim { background: var(--bad-soft); color: var(--bad); text-decoration: line-through; }
+.tr-evolucao { font-size: 12px; color: var(--accent); }
+.tr-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.tr-form label { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 90px; }
+.tr-form input { font-size: 18px; padding: 8px 10px; width: 100%; }
+.tr-form .btn { padding: 10px 14px; }
+.tr-subir { padding: 8px; border-radius: 8px; background: var(--accent-soft); }
+.tr-subir > span { flex-basis: 100%; }
+.tr-fim { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.btn.link { background: none; border: 0; color: var(--muted); text-decoration: underline; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 50; box-shadow: 0 6px 20px rgba(0, 0, 0, .2); max-width: calc(100vw - 32px); }
+@media (max-width: 700px) {
+  .tr-exercicios { grid-template-columns: minmax(0, 1fr); }
+  .tr-barra { gap: 6px 10px; padding: 8px 10px; }
+  .tr-barra > div:first-child { min-width: 0; }
+  .tr-barra > div:first-child .small { display: none; }
+  .tr-barra h2 { font-size: 16px; margin: 0; }
+  .tr-pontos { flex-direction: row; gap: 6px; align-items: baseline; }
+  .tr-pontos b { font-size: 18px; }
+  .tr-timer { flex-basis: 100%; flex-direction: row; justify-content: space-between; padding: 4px 8px; }
+  .tr-timer > .small { display: none; }
+  .tr-timer b { font-size: 24px; }
+}

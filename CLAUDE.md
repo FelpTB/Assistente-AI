@@ -24,6 +24,7 @@ Escopo original: `requirements.txt.txt`.
 | Notion — banco "Tarefas" | database `dde11622db594d3eb5802c6245570e5b` · data source `5072380e-9871-4bb0-8eed-695dca78ed8b` |
 | Drive — pasta "Assistente AI" | `1SLvgcMiydqNIrmDb_n-ykbcc_zw3mOs7` |
 | Sheets — "Controle de Gastos" | `1ATjK3sX3y8_IbgA38cqs1GU3seBus5VAI2441vuzTUI` |
+| Sheets — "Ficha de Treino" | `17f18p2Dke3M0wbIi1iTJ6-pii1J6_Sh2I8l6iYMTVTg` (`GOOGLE_TREINO_SHEET_ID`) |
 | Supabase — projeto abcAdvise (Busca Fornecedor) | `hccolkrnyrxcbxuuajwq`, schema `busca_fornecedor` (company_profile, usuario_fornecedor, usuario_comprador, consultas) |
 
 ### Banco "Tarefas" (Notion)
@@ -45,6 +46,11 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 - **Resumo**: período em B3 (De) e B4 (Até), padrão = mês atual; entradas, saídas, por categoria, por meio, faturas pagas e saldos atuais.
 - **Categorias**: lista editável (Categoria · Tipo).
 - ⚠️ Planilha em locale **pt_BR**: fórmulas usam `;` como separador. Ao gravar via API, enviar datas e valores como números (não texto) e acrescentar linhas com append em `Lançamentos!A:H`.
+
+### Ficha de treino (esfera Academia)
+- Planilha "Ficha de Treino": **Exercícios** (treino, grupo, exercício, tipo Força/Cardio, descanso em s, séries base, **peso atual**, ordem, ativo; editável), **Sessões** (ID, início, fim, treino, status Em andamento/Concluída/Cancelada, pontos), **Séries**, **Evoluções**, **Cardio** e **Regras** (pontos e limites, lidos pelo sistema). Datas gravadas como número de data/hora (RAW).
+- Regras padrão: 1 pt por série válida (≥ 8 repetições), 5 pts por subida de peso, 2 pts por hora de cardio (proporcional); 3 séries base; uma série com 12+ repetições no peso atual libera "Subir peso". A primeira série de um exercício sem peso define o peso atual.
+- Dashboard: aba **Ficha de treino** (iniciar modalidade, registrar série a série, desfazer, subir peso, cardio em minutos, cronômetro de descanso com som/vibração que sobrevive a recarregar a página, finalizar) e **Relatório do mês** (pontos por tipo e por dia, treinos por modalidade, evoluções, maior peso por exercício). Código: `agent/src/treino.ts`, `agent/public/academia.js`. No WhatsApp: tool `relatorio_treino`.
 
 ### Painel Busca Fornecedor
 - Lê o Supabase abcAdvise pela API REST com a chave service_role (`BF_SUPABASE_KEY`). Métricas agregadas (cache de 10 min) e listas das **últimas 40 buscas** (parâmetros, termos, resultados com nota/modelo/escopo/plano/site, qualidade, fallback) e dos **últimos 25 compradores e fornecedores** (cache de 2 min). Telefones mascarados; nunca senha, token nem contatos dos fornecedores encontrados.

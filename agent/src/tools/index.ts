@@ -4,6 +4,7 @@ import { criarEvento, listarAgenda, removerEvento } from "./agenda.js";
 import { MEIOS, TIPOS, corrigirSaldo, lancarGasto, resumoGastos, listarCategorias, saldos } from "./gastos.js";
 import { buscarEmails } from "./emails.js";
 import { enviarPonto, mesAnterior, pontoDoMes } from "../ponto.js";
+import { relatorioTreino } from "../treino.js";
 
 export const tools: Anthropic.Tool[] = [
   {
@@ -178,6 +179,12 @@ tools.push(
   },
 );
 
+tools.push({
+  name: "relatorio_treino",
+  description: "Relatório de academia do mês: pontos (séries, evolução de peso, cardio), treinos feitos, evoluções e maiores pesos. Os treinos são registrados pelo dashboard.",
+  input_schema: { type: "object", properties: { mes: { type: "string", description: "AAAA-MM. Padrão: mês atual" } } },
+});
+
 const handlers: Record<string, (input: any) => Promise<unknown>> = {
   criar_tarefa: criarTarefa,
   listar_tarefas: listarTarefas,
@@ -196,6 +203,10 @@ const handlers: Record<string, (input: any) => Promise<unknown>> = {
     return r;
   },
   enviar_ponto: (i) => enviarPonto(i.mes || mesAnterior()),
+  relatorio_treino: async (i) => {
+    const { porDia, ...r } = await relatorioTreino(i.mes);
+    return r;
+  },
 };
 
 export async function runTool(name: string, input: unknown): Promise<{ content: string; isError: boolean }> {

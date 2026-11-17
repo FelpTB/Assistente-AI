@@ -2,11 +2,13 @@
 import { $, api, addDias, brl, diaDe, esc, fill, fmtData, fmtHora, hojeISO, setOnUnauthorized } from "./util.js";
 import { renderFinancas, redesenharFinancas } from "./financas.js";
 import { redesenharTrabalho, renderBuscaFornecedor, renderEmails, renderPonto } from "./trabalho.js";
+import { redesenharAcademia, renderRelatorioTreino, renderTreino } from "./academia.js";
 
 /** Redesenha os gráficos visíveis (troca de tema ou de largura). */
 const redesenhar = () => {
   redesenharFinancas();
   redesenharTrabalho();
+  redesenharAcademia();
 };
 
 const main = $("#main");
@@ -199,6 +201,11 @@ const ABAS = {
     { id: "tarefas", nome: "Tarefas" },
     { id: "busca-fornecedor", nome: "Busca Fornecedor", render: renderBuscaFornecedor },
     { id: "ponto", nome: "Ponto", render: renderPonto },
+  ],
+  Academia: [
+    { id: "treino", nome: "Ficha de treino", render: renderTreino },
+    { id: "relatorio", nome: "Relatório do mês", render: renderRelatorioTreino },
+    { id: "tarefas", nome: "Tarefas" },
   ],
 };
 

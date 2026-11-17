@@ -48,6 +48,7 @@ export const config = {
     refreshToken: req("GOOGLE_REFRESH_TOKEN"),
     expensesSpreadsheetId: opt("GOOGLE_EXPENSES_SHEET_ID", "1ATjK3sX3y8_IbgA38cqs1GU3seBus5VAI2441vuzTUI"),
     calendarId: opt("GOOGLE_CALENDAR_ID", "primary"),
+    treinoSpreadsheetId: opt("GOOGLE_TREINO_SHEET_ID", "17f18p2Dke3M0wbIi1iTJ6-pii1J6_Sh2I8l6iYMTVTg"),
   },
 
   // Prefixo das respostas do agente: deixa claro no grupo o que veio do assistente.
