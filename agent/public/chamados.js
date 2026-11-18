@@ -110,7 +110,7 @@ function drawFalhas(d) {
   const partes = [];
   if (d.jobsErro.length)
     partes.push(`<h3 class="grupo-sub">Geração de perfil pelo site</h3>` + d.jobsErro
-      .map((j) => item({ tipo: "falha", alvo: j.id, titulo: esc(j.site ?? "—"), meta: `${esc(fmtData(j.updated_at ?? j.created_at, { semana: false }))} · CNPJ ${esc(j.cnpj ?? "—")}`, texto: esc(j.erro ?? ""), acoes: acoesDe("falha", (a) => a.id === "job_tentar_novamente") }))
+      .map((j) => item({ tipo: "falha", alvo: j.id, titulo: esc(j.site ?? "—"), meta: `${esc(fmtData(j.updated_at ?? j.created_at, { semana: false }))} · CNPJ ${esc(j.cnpj ?? "—")}`, texto: esc(j.erro ?? ""), acoes: acoesDe("falha", (a) => a.id === "job_tentar_novamente" || a.id === "job_arquivar") }))
       .join(""));
   const fila = (l, travado) =>
     l.map((f) =>
@@ -125,7 +125,8 @@ function drawFalhas(d) {
     ).join("");
   if (d.filaTravada.length) partes.push(`<h3 class="grupo-sub">Fila de cadastro: travados há mais de 2 h</h3>${fila(d.filaTravada, true)}`);
   if (d.filaErro.length) partes.push(`<h3 class="grupo-sub">Fila de cadastro: com erro</h3>${fila(d.filaErro, false)}`);
-  return partes.join("") || `<div class="empty">Nenhuma falha em aberto.</div>`;
+  const antiBot = d.filaAntiBot ? `<p class="small muted" style="margin-top:10px">${d.filaAntiBot} item(ns) da fila parados por bloqueio anti-bot: o site recusa robôs, então não há reprocessamento possível. Ficam registrados no banco e fora desta lista.</p>` : "";
+  return (partes.join("") || `<div class="empty">Nenhuma falha em aberto.</div>`) + antiBot;
 }
 
 function drawCnpj() {

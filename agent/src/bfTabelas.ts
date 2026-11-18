@@ -137,7 +137,7 @@ export const TABELAS: Tabela[] = [
     id: "fila-perfil", schema: "busca_fornecedor", tabela: "fila_cadastro_perfil", nome: "Fila de cadastro de perfil", grupo: "Cadastro de perfis",
     tempo: "updated_at", ordem: "updated_at.desc.nullslast",
     colunas: [d("updated_at", "Atualizado"), { c: "razao_social", nome: "Empresa" }, { c: "municipio", nome: "Município" }, { c: "uf", nome: "UF" }, { c: "url_site", nome: "Site", tipo: "link" }, { c: "status", nome: "Status" }, { c: "discovery_status", nome: "Descoberta" }, { c: "attempts", nome: "Tentativas", tipo: "num" }, { c: "last_error", nome: "Último erro", tipo: "texto" }, { c: "worker", nome: "Worker" }],
-    agrupar: ["status", "discovery_status"], pendente: "last_error=not.is.null", pendenteNome: "com erro",
+    agrupar: ["status", "discovery_status"], pendente: "status=eq.erro&last_error=not.ilike.bloqueio_anti_bot*", pendenteNome: "com erro reprocessável",
   },
   {
     id: "fila-metricas", schema: "busca_fornecedor", tabela: "fila_cadastro_metricas", nome: "Métricas da fila de cadastro", grupo: "Cadastro de perfis",
@@ -154,7 +154,7 @@ export const TABELAS: Tabela[] = [
     id: "perfil-jobs", schema: "public", tabela: "perfil_site_jobs", nome: "Fila de geração de perfil (site)", grupo: "Cadastro de perfis",
     tempo: "created_at", ordem: "created_at.desc",
     colunas: [d("created_at"), { c: "cnpj", nome: "CNPJ" }, { c: "site", nome: "Site", tipo: "link" }, { c: "status", nome: "Status" }, { c: "tentativas", nome: "Tentativas", tipo: "num" }, { c: "erro", nome: "Erro", tipo: "texto" }],
-    agrupar: ["status"], pendente: "erro=not.is.null", pendenteNome: "com erro",
+    agrupar: ["status"], pendente: "status=eq.erro", pendenteNome: "com erro",
   },
   {
     id: "perfil-layout", schema: "busca_fornecedor", tabela: "perfil_layout", nome: "Editor de perfil: layouts", grupo: "Cadastro de perfis",

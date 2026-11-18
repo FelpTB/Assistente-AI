@@ -246,15 +246,24 @@ acao({
   },
 });
 acao({
+  id: "job_arquivar", tipo: "falha", nome: "Arquivar job", risco: "confirmar",
+  descricao: "Para um job de perfil com erro que não precisa mais ser refeito (site errado, perfil já atualizado por outro caminho, site que bloqueia leitura): marca como arquivado e tira da lista.",
+  executar: async (alvo) => {
+    const l = await rest("public", "perfil_site_jobs", `id=eq.${encodeURIComponent(alvo)}&status=eq.erro`, { method: "PATCH", body: { status: "arquivado" }, prefer: "return=representation" });
+    if (!l?.length) throw erro("Job não está com erro.");
+    return { arquivado: true };
+  },
+});
+acao({
   id: "fila_reenfileirar", tipo: "falha", nome: "Devolver à fila de cadastro", risco: "livre",
-  descricao: "Para um item da fila de cadastro com erro ou travado: volta para pendente e solta o bloqueio do worker.",
+  descricao: "Para um item da fila de cadastro com erro, travado em processamento ou parado em perfil_gravado (perfil salvo sem vetores): volta para pendente e solta o bloqueio do worker.",
   executar: (alvo) =>
-    rest("busca_fornecedor", "fila_cadastro_perfil", `cnpj_basico=eq.${encodeURIComponent(alvo)}&status=in.(erro,processando)`, {
+    rest("busca_fornecedor", "fila_cadastro_perfil", `cnpj_basico=eq.${encodeURIComponent(alvo)}&status=in.(erro,processando,perfil_gravado)`, {
       method: "PATCH",
       body: { status: "pendente", locked_at: null, locked_by: null, last_error: null },
       prefer: "return=representation",
     }).then((l) => {
-      if (!l?.length) throw erro("Item não está com erro nem travado.");
+      if (!l?.length) throw erro("Item não está com erro, travado nem parado em perfil_gravado.");
       return { reenfileirados: l.length };
     }),
 });
@@ -271,13 +280,15 @@ export async function verificarProcessamentos() {
 const TRAVADO_MS = 2 * 3600_000; // item "processando" há mais de 2 h está travado
 
 export async function pendencias() {
-  const [feedbacks, contests, jobs, filaErro, filaTravada, aguardando] = await Promise.all([
+  // Erros de bloqueio anti-bot não têm ação possível (o site recusa robôs): ficam fora da lista, só contados.
+  const [feedbacks, contests, jobs, filaErro, filaTravada, aguardando, antiBot] = await Promise.all([
     rpcAdmin("listar_feedbacks").catch((e) => ({ erro: String(e.message) })),
     rest("public", "site_contests", "select=id,created_at,tipo,status,site_informado,cnpj_usuario,cnpj_conflito,notas&or=(status.eq.pendente,and(status.eq.rejeitado,updated_at.gte." + new Date(Date.now() - 14 * 86400_000).toISOString() + "))&order=created_at.desc&limit=50"),
     rest("public", "perfil_site_jobs", "select=id,created_at,updated_at,cnpj,site,status,tentativas,erro&status=eq.erro&order=updated_at.desc&limit=30"),
-    rest("busca_fornecedor", "fila_cadastro_perfil", "select=cnpj_basico,razao_social,municipio,uf,url_site,status,attempts,last_error,worker,updated_at&status=eq.erro&order=updated_at.desc&limit=50"),
-    rest("busca_fornecedor", "fila_cadastro_perfil", `select=cnpj_basico,razao_social,municipio,uf,url_site,status,attempts,locked_by,locked_at,updated_at&status=eq.processando&locked_at=lt.${new Date(Date.now() - TRAVADO_MS).toISOString()}&order=locked_at.asc&limit=50`),
+    rest("busca_fornecedor", "fila_cadastro_perfil", "select=cnpj_basico,razao_social,municipio,uf,url_site,status,attempts,last_error,worker,updated_at&status=eq.erro&last_error=not.ilike.bloqueio_anti_bot*&order=updated_at.desc&limit=50"),
+    rest("busca_fornecedor", "fila_cadastro_perfil", `select=cnpj_basico,razao_social,municipio,uf,url_site,status,attempts,locked_by,locked_at,updated_at&status=in.(processando,perfil_gravado)&locked_at=lt.${new Date(Date.now() - TRAVADO_MS).toISOString()}&order=locked_at.asc&limit=50`),
     rest("public", "perfil_site_jobs", "select=id&status=eq.aguardando"),
+    rest("busca_fornecedor", "fila_cadastro_perfil", "select=cnpj_basico&status=eq.erro&last_error=ilike.bloqueio_anti_bot*"),
   ]);
   const fb = Array.isArray(feedbacks)
     ? feedbacks
@@ -292,6 +303,7 @@ export async function pendencias() {
     jobsAguardando: aguardando.length,
     filaErro,
     filaTravada,
+    filaAntiBot: antiBot.length,
     acoes: catalogo(),
     analises: analisesSalvas(),
     admin: bf.adminEmail || null,
