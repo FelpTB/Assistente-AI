@@ -192,11 +192,7 @@ export const TABELAS: Tabela[] = [
     tempo: null, ordem: "peso.desc", limite: 50,
     colunas: [{ c: "plano_categoria", nome: "Plano" }, { c: "peso", nome: "Peso", tipo: "num" }],
   },
-  {
-    id: "admins", schema: "busca_fornecedor", tabela: "app_admins", nome: "Admins", grupo: "Sistema e acesso",
-    tempo: "created_at", ordem: "created_at.desc",
-    colunas: [d("created_at", "Desde"), { c: "user_id", nome: "Usuário (ID)" }],
-  },
+  // app_admins fica de fora: a tabela é trancada de propósito (nem a service_role lê; política "no direct access").
   {
     id: "api-keys", schema: "busca_fornecedor", tabela: "api_keys", nome: "Chaves de API", grupo: "Sistema e acesso",
     descricao: "Só prefixo e metadados; o hash da chave nunca é lido.", tempo: "created_at", ordem: "created_at.desc",
