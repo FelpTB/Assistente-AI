@@ -20,6 +20,7 @@ import { emailsDoDia, emailsRecentes } from "./tools/emails.js";
 import { execucoesN8n, metricasBanco, statusSite, ultimasBuscas, ultimosCadastros } from "./buscaFornecedor.js";
 import { detalheTabela, resumoTabelas } from "./bfTabelas.js";
 import { executarAcao, historicoAcoes, pendencias, verificarProcessamentos } from "./bfAdmin.js";
+import { noticiasCapex, projetoCapex, projetosCapex, visaoCapex } from "./capexRadar.js";
 import { cancelarTreino, desfazerSerie, ficha, finalizarTreino, iniciarTreino, registrarCardio, registrarSerie, relatorioTreino, subirPeso } from "./treino.js";
 import { enviarPonto, mesAnterior, planilhaPonto, pontoDoMes, pontoJaEnviado, tabelasN8n } from "./ponto.js";
 
@@ -229,6 +230,12 @@ export function registerDashboardRoutes(app: Express) {
   api.get("/projetos/busca-fornecedor/chamados/historico", route(async () => historicoAcoes()));
   api.post("/projetos/busca-fornecedor/chamados/acao", route(async (req) => executarAcao(String(req.body?.acao ?? ""), String(req.body?.alvo ?? ""), req.body?.params ?? {})));
   api.post("/projetos/busca-fornecedor/chamados/verificar", route(async () => verificarProcessamentos()));
+
+  // ---- Capex Radar (só leitura, pelo MCP do app; triagem fica com o Claude Code) ----
+  api.get("/capex/visao", route(async (req) => visaoCapex(req.query.forcar === "1")));
+  api.get("/capex/projetos", route(async (req) => projetosCapex(req.query as Record<string, unknown>)));
+  api.get("/capex/projetos/:id", route(async (req) => projetoCapex(String(req.params.id))));
+  api.get("/capex/noticias", route(async (req) => noticiasCapex(req.query as Record<string, unknown>)));
 
   // ---- Academia: ficha de treino (planilha "Ficha de Treino") ----
   const corpo = (req: Request) => req.body ?? {};

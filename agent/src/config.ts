@@ -73,6 +73,12 @@ export const config = {
     horaAviso: Number(opt("PONTO_HORA_AVISO", "9")), // hora (fuso do assistente) do aviso no dia 1
   },
 
+  // Capex Radar: o dashboard só lê, pelo MCP do próprio app. Token opcional (o MCP ainda está aberto).
+  capexRadar: {
+    url: opt("CAPEX_RADAR_URL", "https://capex-radar-buscafornecedor.up.railway.app").replace(/\/$/, ""),
+    token: opt("CAPEX_RADAR_TOKEN"),
+  },
+
   // Token do servidor MCP (/mcp) usado pelo Claude Code. Sem ele, o MCP fica desligado.
   mcpToken: opt("MCP_TOKEN"),
 

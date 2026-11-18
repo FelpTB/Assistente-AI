@@ -66,6 +66,12 @@ Visões: tabela padrão, "Por área" (quadro), "Agenda" (calendário).
 - `company_profile` tem ~585 mil linhas e `created_at` **sem índice** (contar por data leva ~5 s; o limite da API é 8 s): o total vem da estimativa do Postgres e os novos são lidos pelas 10 mil linhas mais recentes por `id`.
 - Site: verificação HTTP de `BF_SITE_URL`. n8n: API pública (`N8N_URL`, `N8N_API_KEY`), todas as execuções.
 
+### Capex Radar (aba Trabalho → Capex Radar)
+- Ferramenta da Busca Fornecedor em desenvolvimento: https://capex-radar-buscafornecedor.up.railway.app (dados no schema `capex_radar` do Supabase abcAdvise; `radar`/`radar2` são versões anteriores).
+- **O dashboard só monitora**: `agent/src/capexRadar.ts` chama apenas as ferramentas de leitura do MCP do próprio Capex Radar (`resumo_radar`, `buscar_projetos`, `obter_projeto`, `buscar_noticias`, `obter_noticia`, `historico_alteracoes`), com cache de 2 min. Aba `agent/public/capex.js`: KPIs da carteira, projetos por estágio, notícias a revisar, maiores e mais recentes, empresas monitoradas (coleta > 7 dias em vermelho) e carteira filtrável com ficha do projeto.
+- **Triagem e análise pelo Claude Code**, conectado direto ao MCP do Capex Radar (servidor `capex-radar` no `.mcp.json`): aprovar/vincular/descartar notícias, corrigir projetos, mudar status, classificar registros.
+- ⚠️ 18/11/2026: o MCP (`/mcp`) e as páginas `/monitoramento` do Capex Radar respondem **sem autenticação**, inclusive ferramentas de escrita. Felipe decidiu seguir assim por estar em teste. Quando houver token, definir `CAPEX_RADAR_TOKEN` no Railway (o cliente já envia `Authorization: Bearer`).
+
 ### Ponto mensal (n8n → xlsx → e-mail)
 - `agent/src/ponto.ts` lê a data table **"Ponto Felipe"** do n8n (API pública; tenta `/data-tables` e `/datatables`). Uma linha por batida: `Dia` (DD-MM, sem ano; o ano vem de `createdAt`) · `Hora` (local) · `Tipo_ponto` (Entrada, Almoco (Início), Almoco (Fim), Saída). Horas = saída − entrada − almoço; dias com batida faltando ou repetida ficam marcados.
 - Dia 1, a partir das `PONTO_HORA_AVISO` h: o agente manda o resumo do mês anterior no grupo e pede aprovação; ao aprovar, a tool `enviar_ponto` envia o .xlsx para `PONTO_EMAIL` (waltagan@abcadvise.com.br) pelo Gmail. Não reenvia se já houver e-mail enviado com o mesmo assunto.

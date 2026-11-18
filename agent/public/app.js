@@ -3,6 +3,7 @@ import { $, api, addDias, brl, diaDe, esc, fill, fmtData, fmtHora, hojeISO, setO
 import { renderFinancas, redesenharFinancas } from "./financas.js";
 import { redesenharTrabalho, renderBuscaFornecedor, renderEmails, renderPonto } from "./trabalho.js";
 import { redesenharAcademia, renderRelatorioTreino, renderTreino } from "./academia.js";
+import { renderCapex } from "./capex.js";
 
 /** Redesenha os gráficos visíveis (troca de tema ou de largura). */
 const redesenhar = () => {
@@ -200,6 +201,7 @@ const ABAS = {
     { id: "emails", nome: "Resumo de e-mails", render: renderEmails },
     { id: "tarefas", nome: "Tarefas" },
     { id: "busca-fornecedor", nome: "Busca Fornecedor", render: renderBuscaFornecedor },
+    { id: "capex-radar", nome: "Capex Radar", render: renderCapex },
     { id: "ponto", nome: "Ponto", render: renderPonto },
   ],
   Academia: [
