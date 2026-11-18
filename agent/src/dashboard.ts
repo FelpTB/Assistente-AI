@@ -18,6 +18,7 @@ import {
 import { emailsDoDia, emailsRecentes } from "./tools/emails.js";
 import { execucoesN8n, metricasBanco, statusSite, ultimasBuscas, ultimosCadastros } from "./buscaFornecedor.js";
 import { detalheTabela, resumoTabelas } from "./bfTabelas.js";
+import { analisarChamado, executarAcao, historicoAcoes, pendencias, verificarProcessamentos } from "./bfAdmin.js";
 import { cancelarTreino, desfazerSerie, ficha, finalizarTreino, iniciarTreino, registrarCardio, registrarSerie, relatorioTreino, subirPeso } from "./treino.js";
 import { enviarPonto, mesAnterior, planilhaPonto, pontoDoMes, pontoJaEnviado, tabelasN8n } from "./ponto.js";
 
@@ -274,6 +275,12 @@ export function registerDashboardRoutes(app: Express) {
   api.get("/projetos/busca-fornecedor/cadastros", route(async (req) => ultimosCadastros(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/tabelas", route(async (req) => resumoTabelas(req.query.forcar === "1")));
   api.get("/projetos/busca-fornecedor/tabelas/:id", route(async (req) => detalheTabela(String(req.params.id), req.query.forcar === "1")));
+  // Chamados: o Claude analisa e sugere; o servidor executa só ações do catálogo (com confirmação nas arriscadas).
+  api.get("/projetos/busca-fornecedor/chamados", route(async () => pendencias()));
+  api.get("/projetos/busca-fornecedor/chamados/historico", route(async () => historicoAcoes()));
+  api.post("/projetos/busca-fornecedor/chamados/analisar", route(async (req) => analisarChamado(req.body?.tipo, String(req.body?.alvo ?? ""))));
+  api.post("/projetos/busca-fornecedor/chamados/acao", route(async (req) => executarAcao(String(req.body?.acao ?? ""), String(req.body?.alvo ?? ""), req.body?.params ?? {})));
+  api.post("/projetos/busca-fornecedor/chamados/verificar", route(async () => verificarProcessamentos()));
 
   // ---- Academia: ficha de treino (planilha "Ficha de Treino") ----
   const corpo = (req: Request) => req.body ?? {};

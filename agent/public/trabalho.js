@@ -1,6 +1,7 @@
 // Painéis da esfera Trabalho: resumo de e-mails e projeto Busca Fornecedor.
 import { $, api, esc, fill, fmtData, fmtHora } from "./util.js";
 import { barChart, hBars } from "./charts.js";
+import { carregarChamados } from "./chamados.js";
 
 const remetente = (de) => (de.match(/^"?([^"<]+?)"?\s*</)?.[1] ?? de).trim();
 const num = (n) => (Number(n) || 0).toLocaleString("pt-BR");
@@ -147,6 +148,7 @@ export function renderBuscaFornecedor(el) {
     </div>
     <div id="bf-alertas" class="alertas"></div>
     <div class="grid">
+      ${secao({ id: "chamados", titulo: "Chamados", sub: "", corpo: "bf-chamados" })}
       ${secao({ id: "site", titulo: "Site", sub: "Lovable", span: 4, corpo: "bf-site" })}
       ${secao({ id: "automacoes", titulo: "Automações", sub: "n8n", span: 8, corpo: "bf-n8n-kpis" })}
       ${secao({ id: "consultas", titulo: "Consultas", sub: "Supabase", corpo: "bf-consultas" })}
@@ -194,6 +196,7 @@ export function renderBuscaFornecedor(el) {
     carregarBuscas(q);
     carregarCadastros(q);
     carregarAdmin(q);
+    carregarChamados(forcar);
   };
   $("#bf-atual").onclick = () => carregar(true);
   carregar(false);

@@ -409,3 +409,14 @@ a.row.mail:hover .title { color: var(--accent); }
   .tr-timer > .small { display: none; }
   .tr-timer b { font-size: 24px; }
 }
+
+/* ---- Busca Fornecedor: chamados ---- */
+.ch-topo { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.ch-item { border-top: 1px solid var(--border); padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.ch-texto { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ch-acoes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ch-resposta { margin-top: 8px; padding: 8px; border-radius: 8px; background: var(--surface); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.ch-cnpj { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.ch-cnpj label { display: flex; flex-direction: column; gap: 2px; }
+.btn.perigo { border-color: var(--bad); color: var(--bad); }
+.btn.perigo:hover { background: var(--bad-soft); }

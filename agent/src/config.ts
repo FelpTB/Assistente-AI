@@ -62,6 +62,7 @@ export const config = {
     siteUrl: opt("BF_SITE_URL").replace(/\/$/, ""),
     n8nUrl: opt("N8N_URL").replace(/\/$/, ""),
     n8nApiKey: opt("N8N_API_KEY"),
+    adminEmail: opt("BF_ADMIN_EMAIL"), // usuário em app_admins usado para as ações (sessão sem senha, via link gerado)
   },
 
   // Planilha mensal do ponto (data table do n8n), enviada por e-mail no dia 1 após aprovação no WhatsApp.
