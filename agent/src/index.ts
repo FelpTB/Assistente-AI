@@ -6,6 +6,7 @@ import { anotarAviso, handleMessage, resetHistory } from "./agent.js";
 import { mesAnterior, pontoDoMes, pontoJaEnviado } from "./ponto.js";
 import { registerAuthRoutes } from "./auth.js";
 import { registerDashboardRoutes } from "./dashboard.js";
+import { registerMcpRoutes } from "./mcp.js";
 
 const app = express();
 app.set("trust proxy", 1); // Railway fica atrás de um proxy HTTPS
@@ -18,6 +19,7 @@ app.get("/health", (_req, res) => {
 // Dashboard: a página é pública (só tem o botão de login); os dados ficam em /api, que exige login.
 registerAuthRoutes(app);
 registerDashboardRoutes(app);
+registerMcpRoutes(app);
 app.use(express.static(fileURLToPath(new URL("../public", import.meta.url))));
 
 const processed = new Set<string>();

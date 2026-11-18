@@ -1,11 +1,12 @@
 // Chamados do Busca Fornecedor: feedbacks, contests de site, processamentos com erro e troca de CNPJ.
-// "Analisar com IA" pede ao Claude um resumo e uma ação sugerida; nada é executado sem um clique seu,
-// e ações arriscadas pedem confirmação (a troca de CNPJ pede o CNPJ digitado de novo).
+// A análise é feita pelo Claude Code (MCP: bf_contexto_chamado → bf_salvar_analise) e aparece aqui;
+// o dashboard não usa a API do Claude. Nada é executado sem um clique seu, e ações arriscadas pedem
+// confirmação (a troca de CNPJ pede o CNPJ digitado de novo).
 import { $, api, esc, fmtData } from "./util.js";
 
 let dados = null;
 let aba = "feedbacks";
-const analises = new Map(); // "tipo:alvo" → resultado da IA
+const analise = (tipo, alvo) => dados?.analises?.[`${tipo}:${alvo}`] ?? null; // gravada pelo Claude Code
 
 export async function carregarChamados(forcar = false) {
   const el = $("#bf-chamados");
@@ -35,6 +36,7 @@ function desenhar() {
   if (sub) sub.innerHTML = total ? `<span class="tag alta">${total} em aberto</span>` : "nada em aberto";
   el.innerHTML = `
     ${d.admin ? "" : `<div class="notice">Para executar ações, defina <code>BF_ADMIN_EMAIL</code> no Railway com o e-mail de um usuário que está em <code>app_admins</code>. A análise e a lista funcionam sem isso, exceto feedbacks.</div>`}
+    <div class="small muted" style="margin-bottom:8px">Para analisar, peça ao Claude Code: <i>"analise os chamados do Busca Fornecedor"</i>. As análises aparecem em cada item.</div>
     <div class="ch-topo">
       <div class="theme-switch" role="tablist">${ABAS.map((a) => `<button data-aba="${a.id}" aria-pressed="${a.id === aba}">${a.nome}${a.n(d) ? ` <b>${a.n(d)}</b>` : ""}</button>`).join("")}</div>
       <div class="periodo">
@@ -66,11 +68,8 @@ function item({ tipo, alvo, titulo, meta, texto = "", acoes }) {
   return `<div class="ch-item" data-chave="${esc(chave)}">
     <div class="ch-item-head"><div class="grow"><b>${titulo}</b><div class="meta small muted">${meta}</div></div></div>
     ${texto ? `<div class="ch-texto">${texto}</div>` : ""}
-    <div class="ch-acoes">
-      <button class="btn sm primary" data-analisar="${tipo}" data-alvo="${esc(alvo)}">Analisar com IA</button>
-      ${botoes(tipo, alvo, acoes)}
-    </div>
-    <div class="ch-ia">${analises.has(chave) ? drawAnalise(tipo, alvo, analises.get(chave)) : ""}</div>
+    <div class="ch-acoes">${botoes(tipo, alvo, acoes)}</div>
+    <div class="ch-ia">${analise(tipo, alvo) ? drawAnalise(tipo, alvo, analise(tipo, alvo)) : ""}</div>
   </div>`;
 }
 
@@ -133,7 +132,6 @@ function drawCnpj() {
   return `<form class="ch-cnpj" id="ch-cnpj-previa">
       <label><span class="small muted">CNPJ (8 ou 14 dígitos)</span><input name="cnpj" inputmode="numeric" required placeholder="00.000.000/0000-00"></label>
       <button class="btn">Ver prévia</button>
-      <button class="btn primary" type="button" id="ch-cnpj-ia">Analisar com IA</button>
     </form>
     <div id="ch-cnpj-res"></div>`;
 }
@@ -146,7 +144,7 @@ function drawAnalise(tipo, alvo, r) {
   const a = r.acao ? dados.acoes.find((x) => x.id === r.acao) : null;
   return `<div class="ia-box">
     <div><b>${esc(r.resumo ?? "")}</b></div>
-    <div class="small muted">${[r.categoria, r.confianca && `confiança ${r.confianca}`].filter(Boolean).map(esc).join(" · ")}</div>
+    <div class="small muted">${["Claude Code", r.categoria, r.confianca && `confiança ${r.confianca}`].filter(Boolean).map(esc).join(" · ")}</div>
     ${r.justificativa ? `<div class="small" style="margin-top:6px">${esc(r.justificativa)}</div>` : ""}
     ${r.resposta_sugerida ? `<div class="ch-resposta"><span class="small muted">Resposta sugerida</span><div>${esc(r.resposta_sugerida)}</div><button class="btn sm" data-copiar="${esc(r.resposta_sugerida)}">Copiar</button></div>` : ""}
     ${
@@ -158,34 +156,12 @@ function drawAnalise(tipo, alvo, r) {
 }
 
 function ligar(raiz) {
-  raiz.querySelectorAll("[data-analisar]").forEach((b) => (b.onclick = () => analisar(b.dataset.analisar, b.dataset.alvo, b)));
   raiz.querySelectorAll("[data-acao]").forEach((b) => (b.onclick = () => executar(b.dataset.acao, b.dataset.alvo, JSON.parse(b.dataset.params || "{}"), b)));
   raiz.querySelectorAll("[data-copiar]").forEach((b) => (b.onclick = () => navigator.clipboard?.writeText(b.dataset.copiar).then(() => (b.textContent = "Copiado"))));
   const previa = $("#ch-cnpj-previa");
   if (previa) {
     previa.onsubmit = (e) => (e.preventDefault(), previaCnpj(previa.cnpj.value));
-    $("#ch-cnpj-ia").onclick = () => {
-      const cnpj = previa.cnpj.value.replace(/\D/g, "");
-      if (![8, 14].includes(cnpj.length)) return alert("Informe o CNPJ com 8 ou 14 dígitos.");
-      analisar("cnpj", cnpj, $("#ch-cnpj-ia"), $("#ch-cnpj-res"));
-    };
   }
-}
-
-async function analisar(tipo, alvo, botao, destino) {
-  const chave = `${tipo}:${alvo}`;
-  const box = destino ?? botao.closest(".ch-item").querySelector(".ch-ia");
-  botao.disabled = true;
-  analises.set(chave, { carregando: true });
-  box.innerHTML = drawAnalise(tipo, alvo, analises.get(chave));
-  try {
-    analises.set(chave, await api("/projetos/busca-fornecedor/chamados/analisar", { method: "POST", body: { tipo, alvo } }));
-  } catch (err) {
-    analises.set(chave, { erro: err.message });
-  }
-  box.innerHTML = drawAnalise(tipo, alvo, analises.get(chave));
-  ligar(box);
-  botao.disabled = false;
 }
 
 async function executar(id, alvo, params, botao) {
@@ -205,7 +181,6 @@ async function executar(id, alvo, params, botao) {
   try {
     const r = await api("/projetos/busca-fornecedor/chamados/acao", { method: "POST", body: { acao: id, alvo, params } });
     aviso(`${a.nome}: feito.${r.resultado?.job_id ? " Geração iniciada; use Verificar processamentos em alguns minutos." : ""}`);
-    analises.delete(`${a.tipo}:${alvo}`);
     await carregarChamados();
   } catch (err) {
     alert(err.message);

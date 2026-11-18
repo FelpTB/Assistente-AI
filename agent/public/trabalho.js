@@ -8,6 +8,10 @@ const num = (n) => (Number(n) || 0).toLocaleString("pt-BR");
 
 // ---- Resumo de e-mails ------------------------------------------------------
 
+// Os resumos são escritos pelo Claude Code (MCP: emails_salvar_resumos / emails_salvar_resumo_do_dia);
+// o dashboard não usa a API do Claude.
+const DICA_RESUMO = `Para resumir, peça ao Claude Code: <i>"resuma meus e-mails de hoje no dashboard"</i>.`;
+
 export function renderEmails(el) {
   el.innerHTML = `
     <section class="card" style="margin-bottom:16px">
@@ -15,33 +19,22 @@ export function renderEmails(el) {
       <div id="r-lista"></div>
     </section>
     <section class="card">
-      <div class="card-head"><h2>Todos os e-mails de hoje</h2>
-        <div class="periodo"><button class="btn sm" id="m-atual">Atualizar</button><button class="btn sm primary" id="m-resumo">Resumir o dia com IA</button></div></div>
+      <div class="card-head"><h2>Todos os e-mails de hoje</h2><button class="btn sm" id="m-atual">Atualizar</button></div>
       <div id="m-ia"></div>
       <div id="m-lista"></div>
     </section>`;
-  const recentes = () => {
-    $("#r-lista").innerHTML = `<div class="loading">Lendo e resumindo os e-mails…</div>`;
-    fill($("#r-lista"), () => api("/emails/recentes"), drawRecentes);
-  };
+  const recentes = () => fill($("#r-lista"), () => api("/emails/recentes"), drawRecentes);
+  const resumo = () =>
+    fill($("#m-ia"), () => api("/emails/resumo"), (r) =>
+      r
+        ? `<div class="ia-box">${formatarResumo(r.texto)}<div class="small muted">Resumo do Claude Code${r.emails ? ` de ${r.emails} e-mail(s)` : ""}, às ${fmtHora(r.geradoEm)}.</div></div>`
+        : `<div class="notice">${DICA_RESUMO}</div>`,
+    );
   const hoje = () => fill($("#m-lista"), () => api("/emails/hoje"), drawEmailsHoje);
   $("#r-atual").onclick = recentes;
-  $("#m-atual").onclick = hoje;
-  $("#m-resumo").onclick = async (e) => {
-    const btn = e.target;
-    btn.disabled = true;
-    $("#m-ia").innerHTML = `<div class="ia-box loading">Lendo os e-mails de hoje…</div>`;
-    try {
-      const r = await api("/emails/resumo", { method: "POST" });
-      $("#m-ia").innerHTML = `<div class="ia-box">${formatarResumo(r.texto)}
-        <div class="small muted">Resumo de ${r.emails} e-mail(s), gerado às ${fmtHora(r.geradoEm)}${r.cache ? " (sem e-mails novos desde então)" : ""}.</div></div>`;
-    } catch (err) {
-      $("#m-ia").innerHTML = `<div class="error">${esc(err.message)}</div>`;
-    } finally {
-      btn.disabled = false;
-    }
-  };
+  $("#m-atual").onclick = () => (resumo(), hoje());
   recentes();
+  resumo();
   hoje();
 }
 
@@ -58,7 +51,7 @@ function drawRecentes(es) {
           ${e.acao ? `<div class="acao"><b>Ação:</b> ${esc(e.acao)}</div>` : ""}
         </div></div>`,
     )
-    .join("")}</div>`;
+    .join("")}</div>${es.some((e) => e.resumo) ? "" : `<p class="small muted" style="margin-top:8px">Mostrando o trecho de cada e-mail. ${DICA_RESUMO}</p>`}`;
 }
 
 /** Texto do resumo → HTML seguro: linhas "- " viram itens; as demais, títulos. */

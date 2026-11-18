@@ -73,6 +73,9 @@ export const config = {
     horaAviso: Number(opt("PONTO_HORA_AVISO", "9")), // hora (fuso do assistente) do aviso no dia 1
   },
 
+  // Token do servidor MCP (/mcp) usado pelo Claude Code. Sem ele, o MCP fica desligado.
+  mcpToken: opt("MCP_TOKEN"),
+
   dashboard: {
     // Endereço público do serviço; o Railway informa o domínio em RAILWAY_PUBLIC_DOMAIN.
     publicUrl: (

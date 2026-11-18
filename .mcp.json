@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "assistente": {
+      "type": "http",
+      "url": "https://assistente-ai-claude-officetools.up.railway.app/mcp",
+      "headers": { "Authorization": "Bearer ${ASSISTENTE_MCP_TOKEN}" }
+    }
+  }
+}
