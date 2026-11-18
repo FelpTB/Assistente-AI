@@ -7,6 +7,8 @@ const num = (n) => (Number(n) || 0).toLocaleString("pt-BR");
 const ESTAGIOS = { anuncio: "Anúncio", licenciamento: "Licenciamento", funding: "Funding", contratacao_epc: "Contratação EPC", mobilizacao: "Mobilização", operacao: "Operação", desaceleracao: "Desaceleração", cancelado: "Cancelado" };
 const STATUS = { ativo: "Ativo", em_revisao: "Em revisão", descartado: "Descartado" };
 const estagio = (e) => ESTAGIOS[e] ?? e ?? "—";
+// Status com cor: ativo verde, em revisão laranja, descartado vermelho.
+const statusTag = (s) => `<span class="tag st-${esc(s ?? "")}">${esc(STATUS[s] ?? s ?? "—")}</span>`;
 
 /** R$ curto: 32 bi, 850 mi, 1,2 mil. */
 function reais(v) {
@@ -108,7 +110,7 @@ function listaProjetos(ps, recente = false) {
   return `<div class="list">${ps
     .map(
       (p) => `<div class="row"><div class="grow">${link(`/monitoramento/projetos/${p.id}`, `<b>${esc(p.titulo)}</b>`)}
-        <div class="meta small muted"><span>${esc(p.empresa ?? "")}</span><span>${esc([p.municipio, p.uf].filter(Boolean).join("/"))}</span><span>${esc(estagio(p.estagio))}</span>
+        <div class="meta small muted">${statusTag(p.status)}<span>${esc(p.empresa ?? "")}</span><span>${esc([p.municipio, p.uf].filter(Boolean).join("/"))}</span><span>${esc(estagio(p.estagio))}</span>
         ${recente && p.ultima_evidencia_em ? `<span>evidência ${esc(fmtData(p.ultima_evidencia_em, { hora: false, semana: false }))}</span>` : ""}</div></div>
         <b class="nowrap">${reais(p.valor_estimado_brl)}</b></div>`,
     )
@@ -132,10 +134,10 @@ function drawCarteira(r) {
   return `<p class="small muted">${num(ps.length)} de ${num(r.total)} projeto(s). Clique num projeto para ver a ficha.</p>
     <div class="buscas">${ps
       .map(
-        (p) => `<details class="busca" data-projeto="${esc(p.id)}">
+        (p) => `<details class="busca cx-st-${esc(p.status ?? "")}" data-projeto="${esc(p.id)}">
           <summary><span class="grow"><b>${esc(p.titulo)}</b>
             <span class="meta"><span>${esc(p.empresa ?? "")}</span><span>${esc([p.municipio, p.uf].filter(Boolean).join("/"))}</span><span>${esc((p.nicho ?? "").replace(/_/g, " "))}</span></span></span>
-            <span class="busca-tags"><span class="tag">${esc(estagio(p.estagio))}</span>${p.status !== "ativo" ? `<span class="tag alta">${esc(STATUS[p.status] ?? p.status)}</span>` : ""}
+            <span class="busca-tags">${statusTag(p.status)}<span class="tag">${esc(estagio(p.estagio))}</span>
               <span class="tag">${num(p.evidencias)} evidência(s)</span><b class="nowrap">${reais(p.valor_estimado_brl)}</b></span></summary>
           <div class="busca-corpo cx-ficha"><div class="loading">Carregando a ficha…</div></div>
         </details>`,
@@ -184,6 +186,25 @@ function drawFicha(f) {
             .join("")}</div>`
         : ""
     }
-    ${(f.obras ?? []).length ? `<p class="small muted" style="margin-top:8px">${num(f.obras.length)} obra(s) no CNO · ${num((f.registros ?? []).length)} registro(s) oficiais analisados</p>` : ""}
+    ${drawObras(f.obras ?? [])}
+    ${(f.registros ?? []).length ? `<p class="small muted" style="margin-top:8px">${num(f.registros.length)} registro(s) oficiais analisados</p>` : ""}
     <p style="margin-top:8px">${link(`/monitoramento/projetos/${p.id}`, "Abrir no Capex Radar")}</p>`;
+}
+
+// Obras do CNO ligadas ao projeto, num dropdown.
+const CLASSES = { certeira: "st-ativo", provavel: "st-em_revisao", possivel: "", descartada: "st-descartado" };
+function drawObras(obras) {
+  if (!obras.length) return "";
+  const area = (a) => (Number(a) ? `${Number(a).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} m²` : "—");
+  return `<details class="cx-obras">
+    <summary><b>${num(obras.length)} obra(s) no CNO</b> <span class="muted small">${esc([...new Set(obras.map((o) => o.status).filter(Boolean))].join(", "))}</span></summary>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>CNO</th><th>Obra</th><th>Município</th><th class="num">Área</th><th>Início</th><th>Situação</th><th>Vínculo</th></tr></thead><tbody>
+    ${obras
+      .map(
+        (o) => `<tr><td class="nowrap small">${esc(o.cno ?? "")}</td><td>${esc(o.nome ?? "")}</td><td>${esc(o.municipio ?? "")}</td><td class="num nowrap">${area(o.area)}</td>
+        <td class="nowrap">${esc(o.inicio ?? "—")}</td><td>${esc(o.status ?? "—")}${o.desde ? ` <span class="muted small">desde ${esc(o.desde)}</span>` : ""}</td>
+        <td>${o.classe ? `<span class="tag ${CLASSES[o.classe] ?? ""}">${esc(o.classe)}</span>` : "—"}</td></tr>`,
+      )
+      .join("")}</tbody></table></div>
+  </details>`;
 }

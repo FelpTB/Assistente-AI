@@ -420,3 +420,14 @@ a.row.mail:hover .title { color: var(--accent); }
 .ch-cnpj label { display: flex; flex-direction: column; gap: 2px; }
 .btn.perigo { border-color: var(--bad); color: var(--bad); }
 .btn.perigo:hover { background: var(--bad-soft); }
+
+/* ---- Capex Radar: status da carteira ---- */
+.tag.st-ativo { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.tag.st-em_revisao { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); font-weight: 600; }
+.tag.st-descartado { background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.busca.cx-st-ativo > summary { border-left: 3px solid var(--ok); padding-left: 8px; }
+.busca.cx-st-em_revisao > summary { border-left: 3px solid var(--warn); padding-left: 8px; }
+.busca.cx-st-descartado > summary { border-left: 3px solid var(--bad); padding-left: 8px; opacity: .8; }
+.cx-obras { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+.cx-obras > summary { cursor: pointer; padding: 4px 0; }
+.cx-obras[open] > summary { margin-bottom: 6px; }
