@@ -114,7 +114,6 @@ type Acao = {
 };
 
 const ACOES: Acao[] = [];
-const TROCA_CNPJ_LIBERADA = false;
 const acao = (a: Acao) => ACOES.push(a);
 
 // Feedbacks (RPCs: atualizar_status_feedback, excluir_feedback)
@@ -142,15 +141,23 @@ acao({
 });
 acao({
   id: "cnpj_trocar", tipo: "cnpj", nome: "Trocar CNPJ do fornecedor", risco: "digitar",
-  descricao: "Move perfil, aparições e usuários do CNPJ antigo para o novo. Irreversível. Desativada até a função do banco ser refeita.",
-  executar: (alvo, p) => {
-    // admin_trocar_cnpj_fornecedor ainda busca o perfil pelos 14 dígitos, recria o perfil só com 4 colunas e,
-    // ao apagar o antigo, apaga em cascata os whatsapp_envios do fornecedor. Não chamar até ser refeita.
-    if (!TROCA_CNPJ_LIBERADA) throw erro("A troca de CNPJ está desativada até a função do banco ser refeita (ver CLAUDE.md). Use a prévia para conferir o caso.");
+  descricao: "Move para o CNPJ novo tudo o que é da conta e do perfil (perfil, aparições, usuário, vendedores, engajamento, avaliações, mensagens, layouts, histórico de envios, contests). Irreversível; para se o destino já tiver dados.",
+  executar: async (alvo, p) => {
     const novo = String(p.cnpjNovo ?? "").replace(/\D/g, "");
     if (novo.length !== 14) throw erro("Informe o CNPJ novo com 14 dígitos.");
     if (String(p.confirmacao ?? "").replace(/\D/g, "") !== novo) throw erro("Digite o CNPJ novo de novo para confirmar.");
-    return rpcAdmin("admin_trocar_cnpj_fornecedor", { p_cnpj_antigo: alvo, p_cnpj_novo: novo });
+    try {
+      return await rpcAdmin("admin_trocar_cnpj_fornecedor", { p_cnpj_antigo: alvo, p_cnpj_novo: novo });
+    } catch (e: any) {
+      const m = String(e?.message ?? e);
+      const amigavel: [RegExp, string][] = [
+        [/destino_ja_tem_dados: ([\w, ]+)/, "O CNPJ novo já tem dados em: $1. Nada foi alterado."],
+        [/cnpj_novo_nao_existe_na_receita/, "O CNPJ novo não existe na base da Receita. Nada foi alterado."],
+        [/cnpj_antigo_nao_encontrado/, "Não há perfil para o CNPJ antigo. Nada foi alterado."],
+      ];
+      for (const [re, txt] of amigavel) if (re.test(m)) throw erro(m.replace(new RegExp(`.*${re.source}.*`, "s"), txt));
+      throw e;
+    }
   },
 });
 

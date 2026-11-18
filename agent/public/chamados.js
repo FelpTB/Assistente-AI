@@ -246,8 +246,30 @@ async function previaCnpj(valor) {
           ${linha("Avaliações", p.avaliacoes)}
           ${linha("Mensagens de compradores", p.mensagens)}
         </div>
-        <div class="small muted" style="margin-top:8px">A troca em si está desativada até a função do banco ser refeita: a versão atual perderia dados do perfil e os envios de WhatsApp.</div>
-      </div>`;
+      </div>
+      ${p.existe && cnpj.length === 14 ? `<form class="ch-cnpj" id="ch-cnpj-trocar" style="margin-top:10px">
+        <label><span class="small muted">CNPJ novo (14 dígitos)</span><input name="novo" inputmode="numeric" required></label>
+        <label><span class="small muted">Digite o CNPJ novo de novo</span><input name="conf" inputmode="numeric" required></label>
+        <button class="btn perigo">Trocar CNPJ (irreversível)</button>
+      </form>` : p.existe ? `<div class="small muted" style="margin-top:8px">Para trocar, informe o CNPJ atual completo (14 dígitos).</div>` : ""}`;
+    const f = $("#ch-cnpj-trocar");
+    if (f)
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        if (!confirm(`Trocar o CNPJ ${cnpj} por ${f.novo.value}?
+
+Tudo o que é da conta e do perfil passa para o CNPJ novo. Não pode ser desfeito.`)) return;
+        f.querySelector("button").disabled = true;
+        try {
+          const r = await api("/projetos/busca-fornecedor/chamados/acao", { method: "POST", body: { acao: "cnpj_trocar", alvo: cnpj, params: { cnpjNovo: f.novo.value, confirmacao: f.conf.value, confirmar: true } } });
+          const m = r.resultado?.movidos ?? {};
+          const itens = Object.entries(m).filter(([k, v]) => k !== "perfil" && v).map(([k, v]) => `${esc(k)}: ${v}`);
+          box.innerHTML = `<div class="notice">CNPJ trocado para ${esc(r.resultado?.para ?? "")}. Perfil ${esc(m.perfil?.de ?? "")} → ${esc(m.perfil?.para ?? "")}.${itens.length ? `<br>Movidos: ${itens.join(" · ")}` : ""}</div>`;
+        } catch (err) {
+          alert(err.message);
+          f.querySelector("button").disabled = false;
+        }
+      };
   } catch (err) {
     box.innerHTML = `<div class="error">${esc(err.message)}</div>`;
   }
