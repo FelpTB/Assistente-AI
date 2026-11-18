@@ -47,7 +47,7 @@ export const TABELAS: Tabela[] = [
     id: "mensagens", schema: "busca_fornecedor", tabela: "mensagens_comprador_fornecedor", nome: "Mensagens comprador → fornecedor", grupo: "Atendimento",
     tempo: "created_at", ordem: "created_at.desc",
     colunas: [d("created_at"), { c: "fornecedor_cnpj_basico", nome: "CNPJ básico" }, { c: "mensagem", nome: "Mensagem", tipo: "texto" }, { c: "lida", nome: "Lida", tipo: "bool" }, { c: "contato_email", nome: "E-mail", tipo: "email" }, { c: "contato_telefone", nome: "Telefone", tipo: "tel" }],
-    agrupar: ["lida"], pendente: "lida=is.false", pendenteNome: "não lidas",
+    agrupar: ["lida"], // sem alerta de não lidas: quem lê é o fornecedor, não o admin
   },
   {
     id: "avaliacoes", schema: "busca_fornecedor", tabela: "avaliacoes_fornecedor", nome: "Avaliações com estrelas", grupo: "Atendimento",
