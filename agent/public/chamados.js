@@ -131,7 +131,7 @@ function drawFalhas(d) {
 
 function drawCnpj() {
   return `<form class="ch-cnpj" id="ch-cnpj-previa">
-      <label><span class="small muted">CNPJ atual (14 dígitos)</span><input name="cnpj" inputmode="numeric" required placeholder="00.000.000/0000-00"></label>
+      <label><span class="small muted">CNPJ (8 ou 14 dígitos)</span><input name="cnpj" inputmode="numeric" required placeholder="00.000.000/0000-00"></label>
       <button class="btn">Ver prévia</button>
       <button class="btn primary" type="button" id="ch-cnpj-ia">Analisar com IA</button>
     </form>
@@ -166,7 +166,7 @@ function ligar(raiz) {
     previa.onsubmit = (e) => (e.preventDefault(), previaCnpj(previa.cnpj.value));
     $("#ch-cnpj-ia").onclick = () => {
       const cnpj = previa.cnpj.value.replace(/\D/g, "");
-      if (cnpj.length !== 14) return alert("Informe o CNPJ com 14 dígitos.");
+      if (![8, 14].includes(cnpj.length)) return alert("Informe o CNPJ com 8 ou 14 dígitos.");
       analisar("cnpj", cnpj, $("#ch-cnpj-ia"), $("#ch-cnpj-res"));
     };
   }
@@ -229,31 +229,25 @@ async function verificar(e) {
 async function previaCnpj(valor) {
   const cnpj = valor.replace(/\D/g, "");
   const box = $("#ch-cnpj-res");
-  if (cnpj.length !== 14) return (box.innerHTML = `<div class="error">Informe o CNPJ com 14 dígitos.</div>`);
+  if (![8, 14].includes(cnpj.length)) return (box.innerHTML = `<div class="error">Informe o CNPJ com 8 (básico) ou 14 dígitos.</div>`);
   box.innerHTML = `<div class="loading">Consultando…</div>`;
   try {
     const { resultado: p } = await api("/projetos/busca-fornecedor/chamados/acao", { method: "POST", body: { acao: "cnpj_previa", alvo: cnpj } });
+    const linha = (nome, n) => `<div class="row"><span class="grow">${nome}</span><b>${n ?? 0}</b></div>`;
     box.innerHTML = `<div class="ia-box">
-        <div><b>${p.existe ? esc(p.razao_social ?? "Perfil encontrado") : "Nenhum perfil com este CNPJ"}</b></div>
-        <div class="small muted">${p.aparicoes ?? 0} aparições · ${p.usuarios_vinculados ?? 0} usuário(s) vinculado(s)</div>
-      </div>
-      ${p.existe ? `<form class="ch-cnpj" id="ch-cnpj-trocar" style="margin-top:10px">
-        <label><span class="small muted">CNPJ novo</span><input name="novo" inputmode="numeric" required></label>
-        <label><span class="small muted">Digite o CNPJ novo de novo</span><input name="conf" inputmode="numeric" required></label>
-        <button class="btn perigo">Trocar CNPJ (irreversível)</button>
-      </form>` : ""}`;
-    const f = $("#ch-cnpj-trocar");
-    if (f)
-      f.onsubmit = async (e) => {
-        e.preventDefault();
-        if (!confirm(`Trocar o CNPJ ${cnpj} por ${f.novo.value}? Isso move perfil, aparições e usuários e não pode ser desfeito.`)) return;
-        try {
-          const r = await api("/projetos/busca-fornecedor/chamados/acao", { method: "POST", body: { acao: "cnpj_trocar", alvo: cnpj, params: { cnpjNovo: f.novo.value, confirmacao: f.conf.value, confirmar: true } } });
-          box.innerHTML = `<div class="notice">CNPJ trocado: ${r.resultado?.aparicoes_atualizadas ?? 0} aparições e ${r.resultado?.usuarios_atualizados ?? 0} usuário(s) atualizados.</div>`;
-        } catch (err) {
-          alert(err.message);
-        }
-      };
+        <div><b>${p.existe ? esc(p.razao_social ?? "Perfil encontrado") : "Nenhum perfil com este CNPJ"}</b>${p.is_dummy ? ` <span class="tag">dummy</span>` : ""}</div>
+        ${p.chave_perfil ? `<div class="small muted">Perfil guardado com a chave ${esc(p.chave_perfil)}</div>` : ""}
+        <div class="list" style="margin-top:8px">
+          ${linha("Usuários fornecedores vinculados", p.usuarios_vinculados)}
+          ${linha("Aparições em buscas", p.aparicoes)}
+          ${linha("Envios de WhatsApp", p.whatsapp_envios)}
+          ${linha("Engajamento", p.engajamento)}
+          ${linha("Layouts de perfil", p.layouts_perfil)}
+          ${linha("Avaliações", p.avaliacoes)}
+          ${linha("Mensagens de compradores", p.mensagens)}
+        </div>
+        <div class="small muted" style="margin-top:8px">A troca em si está desativada até a função do banco ser refeita: a versão atual perderia dados do perfil e os envios de WhatsApp.</div>
+      </div>`;
   } catch (err) {
     box.innerHTML = `<div class="error">${esc(err.message)}</div>`;
   }

@@ -114,6 +114,7 @@ type Acao = {
 };
 
 const ACOES: Acao[] = [];
+const TROCA_CNPJ_LIBERADA = false;
 const acao = (a: Acao) => ACOES.push(a);
 
 // Feedbacks (RPCs: atualizar_status_feedback, excluir_feedback)
@@ -136,13 +137,16 @@ acao({
 // Troca de CNPJ (RPCs: admin_preview_troca_cnpj, admin_trocar_cnpj_fornecedor)
 acao({
   id: "cnpj_previa", tipo: "cnpj", nome: "Prévia da troca de CNPJ", risco: "livre",
-  descricao: "Mostra o que existe no CNPJ (perfil, aparições, usuários) sem alterar nada.",
+  descricao: "Mostra o que existe no CNPJ (8 ou 14 dígitos): perfil, aparições, usuários, WhatsApp, engajamento, layouts, avaliações e mensagens. Não altera nada.",
   executar: (alvo) => rpcAdmin("admin_preview_troca_cnpj", { p_cnpj: alvo }),
 });
 acao({
   id: "cnpj_trocar", tipo: "cnpj", nome: "Trocar CNPJ do fornecedor", risco: "digitar",
-  descricao: "Move perfil, aparições e usuários do CNPJ antigo para o novo. Irreversível.",
+  descricao: "Move perfil, aparições e usuários do CNPJ antigo para o novo. Irreversível. Desativada até a função do banco ser refeita.",
   executar: (alvo, p) => {
+    // admin_trocar_cnpj_fornecedor ainda busca o perfil pelos 14 dígitos, recria o perfil só com 4 colunas e,
+    // ao apagar o antigo, apaga em cascata os whatsapp_envios do fornecedor. Não chamar até ser refeita.
+    if (!TROCA_CNPJ_LIBERADA) throw erro("A troca de CNPJ está desativada até a função do banco ser refeita (ver CLAUDE.md). Use a prévia para conferir o caso.");
     const novo = String(p.cnpjNovo ?? "").replace(/\D/g, "");
     if (novo.length !== 14) throw erro("Informe o CNPJ novo com 14 dígitos.");
     if (String(p.confirmacao ?? "").replace(/\D/g, "") !== novo) throw erro("Digite o CNPJ novo de novo para confirmar.");
