@@ -55,22 +55,79 @@ Formato da resposta (WhatsApp):
 - Português, curto e direto. Use *negrito* com um asterisco, listas com "•". Sem tabelas, sem markdown de títulos (#).
 - Depois de executar, confirme em 1–2 linhas o que foi feito. Valores em R$ no formato brasileiro (R$ 1.234,56).`;
 
+/** Toda chamada de ferramenta precisa de um resultado na mensagem seguinte; sem isso a API recusa
+ *  o histórico inteiro (erro "tool_use ids were found without tool_result blocks"). Completa o que faltar. */
+function repararHistorico(msgs: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  const out: Anthropic.MessageParam[] = [];
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    out.push(m);
+    if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
+    const ids = m.content.filter((b) => b.type === "tool_use").map((b) => (b as Anthropic.ToolUseBlockParam).id);
+    if (!ids.length) continue;
+    const prox = msgs[i + 1];
+    const respondidos = new Set(
+      prox?.role === "user" && Array.isArray(prox.content)
+        ? prox.content.filter((b) => b.type === "tool_result").map((b) => (b as Anthropic.ToolResultBlockParam).tool_use_id)
+        : [],
+    );
+    const faltando = ids.filter((id) => !respondidos.has(id));
+    if (!faltando.length) continue;
+    const resultados: Anthropic.ToolResultBlockParam[] = faltando.map((id) => ({ type: "tool_result", tool_use_id: id, content: "Não executada.", is_error: true }));
+    if (prox?.role === "user") {
+      // Os resultados precisam vir antes de qualquer texto na mensagem seguinte.
+      const conteudo = Array.isArray(prox.content) ? prox.content : [{ type: "text" as const, text: prox.content }];
+      out.push({ role: "user", content: [...resultados, ...conteudo] });
+      i++;
+    } else {
+      out.push({ role: "user", content: resultados });
+    }
+  }
+  return out;
+}
+
+const historicoInvalido = (err: any) =>
+  err?.status === 400 && /tool_use|tool_result|messages\.\d+/i.test(String(err?.error?.error?.message ?? err?.message ?? ""));
+
 export async function handleMessage(chatId: string, text: string): Promise<string> {
-  const msgs = history.get(chatId) ?? [];
+  try {
+    return await conversar(chatId, text);
+  } catch (err) {
+    // Histórico corrompido: começa do zero e tenta uma vez só com a mensagem atual.
+    if (!historicoInvalido(err)) throw err;
+    console.error("[agent] histórico inválido; memória da conversa reiniciada", (err as any)?.error?.error?.message);
+    history.delete(chatId);
+    return conversar(chatId, text);
+  }
+}
+
+async function conversar(chatId: string, text: string): Promise<string> {
+  // Trabalha numa cópia: se algo falhar no meio, o histórico guardado não fica com pedaços do turno.
+  const msgs = repararHistorico(history.get(chatId) ?? []);
   msgs.push({ role: "user", content: `[agora: ${agora()}]\n${text}` });
 
   for (let step = 0; step < 8; step++) {
     const res = await client.messages.create({
       model: config.anthropic.model,
-      max_tokens: 2048,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       tools,
       messages: msgs,
     });
 
+    const usos = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+    if (res.stop_reason === "max_tokens" && usos.length) {
+      // Resposta cortada no meio de chamadas de ferramenta: a última pode estar incompleta.
+      // Não executa nada desse trecho e pede para continuar em partes menores.
+      msgs.push({ role: "assistant", content: res.content.filter((b) => b.type !== "tool_use") });
+      if (!Array.isArray(msgs.at(-1)!.content) || !(msgs.at(-1)!.content as unknown[]).length) msgs.pop();
+      msgs.push({ role: "user", content: "[sistema] Sua resposta foi cortada por tamanho e nenhuma ação foi executada. Faça as ações em grupos menores (até 5 por vez)." });
+      continue;
+    }
+
     msgs.push({ role: "assistant", content: res.content });
 
-    if (res.stop_reason !== "tool_use") {
+    if (!usos.length) {
       const reply = res.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
@@ -81,8 +138,7 @@ export async function handleMessage(chatId: string, text: string): Promise<strin
     }
 
     const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const block of res.content) {
-      if (block.type !== "tool_use") continue;
+    for (const block of usos) {
       console.log(`[tool] ${block.name}`, JSON.stringify(block.input));
       const r = await runTool(block.name, block.input);
       results.push({ type: "tool_result", tool_use_id: block.id, content: r.content, is_error: r.isError });
@@ -110,13 +166,13 @@ function saveHistory(chatId: string, msgs: Anthropic.MessageParam[]) {
     const start = trimmed.findIndex((m) => m.role === "user" && typeof m.content === "string");
     trimmed = start >= 0 ? trimmed.slice(start) : [];
   }
-  history.set(chatId, trimmed);
+  history.set(chatId, repararHistorico(trimmed));
 }
 
 /** Coloca no histórico uma mensagem que o agente mandou por conta própria (ex.: aviso do dia 1),
  *  para que a resposta do Felipe ("pode enviar") tenha contexto. */
 export function anotarAviso(chatId: string, motivo: string, texto: string) {
-  const msgs = history.get(chatId) ?? [];
+  const msgs = [...(history.get(chatId) ?? [])];
   msgs.push(
     { role: "user", content: `[agora: ${agora()}]\n[Aviso automático do sistema, não escrito pelo Felipe] ${motivo}` },
     { role: "assistant", content: texto },

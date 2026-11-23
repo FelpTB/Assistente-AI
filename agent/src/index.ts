@@ -116,7 +116,7 @@ async function processMessage(chatJid: string, text: string) {
     await prepararPonto(chatJid, mes, true);
     return;
   }
-  if (text === "/reset") {
+  if (["/reset", "/clean", "/limpar"].includes(text.trim().toLowerCase())) {
     resetHistory(chatJid);
     await sendText(chatJid, `${config.replyPrefix}Memória da conversa limpa.`);
     return;
